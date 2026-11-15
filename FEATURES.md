@@ -1,0 +1,243 @@
+# FEATURES.md: ShuttleCircle
+
+## 1. Feature Module Map
+
+| Module | Primary Roles | Decisions | Related Spec |
+|:---|:---|:---|:---|
+| F1 Identity & Session | Guest, Member | DEC-001, DEC-004, DEC-008, DEC-020 | API.md §3.1 |
+| F2 Match Calendar | All | DEC-019 | API.md §3.2 |
+| F3 Match Configuration | Host, Admin | DEC-016 | API.md §3.2 |
+| F4 Join Request & Approval | All | DEC-002, DEC-003, DEC-009 | API.md §3.3 |
+| F5 Payment & Seat Hold | Member | DEC-002, DEC-003, DEC-004, DEC-010 | API.md §3.3, §3.5 |
+| F6 Wallet, Membership, Donation | Member, Admin, Superadmin | DEC-005, DEC-013, DEC-014 | API.md §3.4 |
+| F7 Match History & Media | Host, Admin, Member | DEC-012, DEC-017 | API.md §3.6 |
+| F8 Reward Engine | Member | DEC-015 | DATABASE.md `rewards` |
+| F9 Notifications | Members | DEC-011 | ARCHITECTURE.md §4 |
+| F10 Finance Dashboard & Admin | Admin, Superadmin | — | API.md §3.7 |
+
+Field names in this file match `DATABASE.md` and `API.md`.
+
+## 2. Join Request State Machine
+
+This is the single source for request states. Other documents use these names.
+
+```mermaid
+stateDiagram-v2
+    [*] --> pending: request
+    pending --> confirmed: approve, covered by membership / reward / wallet
+    pending --> awaiting_payment: approve, not covered (hold 30 min)
+    pending --> rejected: reject
+    pending --> cancelled: withdrawn, match cancelled, or match started
+    awaiting_payment --> confirmed: settled
+    awaiting_payment --> expired: hold ended unpaid
+    awaiting_payment --> cancelled: withdrawn or match cancelled
+    expired --> awaiting_payment: host approves again (new hold)
+    expired --> confirmed: host approves again, covered
+    confirmed --> cancelled: match cancelled (wallet refund) or withdrawn
+```
+
+- A seat is taken by `awaiting_payment` and `confirmed` requests. `taken ≤ capacity` always.
+- `expired` is the automatic cancellation of DEC-003. Nothing is promoted automatically.
+- **Settlement** is one backend routine, run on approval, on guest conversion, on a manual credit, on `pay`, and on a gateway webhook. It tries, in order: active membership for the match month, unused unexpired reward, wallet balance ≥ price. On success the request becomes `confirmed` and `payment_method` records which one paid.
+
+## 3. F1 — Identity & Session
+
+### User Stories
+- As a guest, I enter a nickname and immediately browse and request to join a match without an account.
+- As a member, I sign in with Google or email + password and keep my history across devices.
+- As an approved guest, I am prompted to create an account so I can pay and keep history (DEC-001, DEC-004).
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F1-01 | The guest cookie `sc_guest` is signed, `HttpOnly`, `Secure`, `SameSite=Lax`, 30 days, and carries `sid` and `nickname`. No `users` row is created for a guest. |
+| AC-F1-02 | A guest join request stores `guest_sid` and `guest_nickname`. Without the cookie the guest identity is lost; open guest requests close when the match starts. |
+| AC-F1-03 | Member auth issues an access JWT (15 min, held in browser memory) and a refresh token (7 days, rotated on use, `HttpOnly` cookie, stored hashed). Passwords use Argon2id, minimum 8 characters. |
+| AC-F1-04 | An approved guest sees a blocking conversion prompt with the hold countdown and cannot reach payment (DEC-004). |
+| AC-F1-05 | On register or sign-in while `sc_guest` is present, open requests with that `guest_sid` are linked to the user, the cookie is cleared, and settlement runs for held requests. |
+| AC-F1-06 | Google sign-in with a verified email that matches an existing account signs into that account. If that account's email was never verified, its password is removed. |
+| AC-F1-07 | Password reset and email verification use single-use emailed links (1 hour and 24 hours). Verification does not block use of the app. Without SMTP configured, reset is unavailable. |
+| AC-F1-08 | The first superadmin is created by a server command. Roles change only through the superadmin user screen (DEC-020). |
+| AC-F1-09 | A suspended user cannot sign in or refresh. Role and status changes take effect within 15 minutes (access token lifetime). |
+
+### Edge Cases
+- Email already registered during conversion → show "sign in instead"; signing in links the request (AC-F1-05).
+- Linked request duplicates a request the member already has for that match → the guest request is cancelled.
+- OAuth2 `state` mismatch → callback rejected, no session issued.
+- Reused (already rotated) refresh token → all of that user's refresh tokens are revoked.
+
+## 4. F2 — Match Calendar
+
+### User Stories
+- As any role, I view matches on a calendar spanning 1 month back to 3 months ahead.
+- As any role, I open a match and tap the location to get Google Maps directions.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F2-01 | The API clamps the requested range to `[today − 1 month, today + 3 months]` silently; matches outside it are never returned. |
+| AC-F2-02 | Each match shows status, type, capacity, seats remaining (`capacity − taken`), price and equipment. |
+| AC-F2-03 | `status` is computed, not stored: `cancelled` if `cancelled_at` is set, else `scheduled` before `starts_at`, `ongoing` until `starts_at + duration_hours`, then `completed`. Server clock only. |
+| AC-F2-04 | Location opens `location_maps_url` in a new tab for all roles including guest. |
+| AC-F2-05 | Times display in Asia/Jakarta; the API sends UTC. |
+| AC-F2-06 | Calendar p95 API < 300 ms; no pagination (the window holds at most four months). |
+
+### Edge Cases
+- A visitor with neither cookie nor login opens a shared match link → nickname prompt, then the match.
+- A match with no confirmed players still appears as `scheduled`.
+
+## 5. F3 — Match Configuration
+
+### User Stories
+- As a host or admin, I create a match with title, start, location, duration, capacity, type, equipment, court cost and price.
+- As an admin, I assign a host; if none is selected, I am the host (FR-06).
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F3-01 | Required: `title`, `starts_at` (future), `duration_hours` (1–12), `location_name`, `location_maps_url` (https), `capacity` (≥ 1), `match_type`, `racket_provided`, `shuttlecock_provided`, `price_idr` (≥ 0), `court_cost_per_hour_idr` (≥ 0). Optional: `equipment_notes`. |
+| AC-F3-02 | Seats taken never exceed `capacity`; approval locks the match row to enforce this. |
+| AC-F3-03 | A host may set only themselves as host and edit only own matches. Admins and superadmins may assign any user with role host or higher and edit any match. |
+| AC-F3-04 | After any request is `awaiting_payment` or `confirmed`, `price_idr` cannot change. |
+| AC-F3-05 | A started or cancelled match cannot be edited, except `games_played` and media. |
+
+### Edge Cases
+- Reducing capacity below seats taken → 409.
+- Cancelling a match → superadmin only; open requests become `cancelled`; confirmed players are refunded to wallet, a used reward is restored, and all are notified (DEC-016).
+
+## 6. F4 — Join Request & Approval
+
+### User Stories
+- As any role, I request to join a scheduled match.
+- As host, admin or superadmin, I approve or reject requests from a request list.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F4-01 | States and transitions follow §2. |
+| AC-F4-02 | Approval is manual by the match host, an admin or a superadmin; nothing is approved or promoted automatically (DEC-003). |
+| AC-F4-03 | Approval runs settlement in the same transaction. If not covered, the request becomes `awaiting_payment` with `hold_expires_at = now + 30 min` (DEC-002, DEC-009). |
+| AC-F4-04 | Requests are accepted while a match is `scheduled`, even when full, so the host has a queue to approve from when a seat frees up. Approval fails with 409 when no seat is free. |
+| AC-F4-05 | One open request (`pending`, `awaiting_payment`, `confirmed`) per player per match. |
+| AC-F4-06 | A requester can withdraw their own `pending` or `awaiting_payment` request. |
+| AC-F4-07 | Rejection and approval notify a member requester; a guest sees the status on the site. |
+| AC-F4-08 | A guest can hold at most 3 open requests. |
+
+### Edge Cases
+- Two approvers act on the same request at once → the second receives 409; the transition is guarded by the current status.
+- Two approvals compete for the last seat → one succeeds, the other receives 409.
+- Request on a started, completed or cancelled match → 409.
+- Match starts with requests still `pending` or `awaiting_payment` → the worker cancels them.
+
+## 7. F5 — Payment & Seat Hold
+
+### User Stories
+- As an approved member covered by membership, reward or wallet, I am confirmed immediately.
+- As an approved member not covered, I pay by QR within 30 minutes while my seat is held.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F5-01 | Covered at approval → `confirmed`; a wallet payment writes one `match_payment` ledger entry. |
+| AC-F5-02 | Not covered → `awaiting_payment` for exactly 30 minutes from approval (DEC-002). |
+| AC-F5-03 | The player starts payment from their own request page. The backend first retries settlement, then creates a Midtrans Snap transaction for the full `price_idr`, expiring when the hold expires. |
+| AC-F5-04 | A verified settlement webhook credits the player's wallet, then runs settlement; the request becomes `confirmed` and a confirmation is sent. All in one transaction. |
+| AC-F5-05 | When the hold ends unpaid the worker sets `expired` and notifies the player; no other request is promoted (DEC-003). |
+| AC-F5-06 | A guest cannot create a payment; the request must first be linked to a member (DEC-004). |
+| AC-F5-07 | Webhooks are verified by signature and amount, and are idempotent per `order_id`. |
+
+### Edge Cases
+- Payment settles after the hold expired or the seat was taken → the money stays in the wallet as a top-up; the player is notified.
+- Duplicate webhook → acknowledged, no second credit.
+- Gateway down → the player sees a retry message; an admin manual credit (DEC-005) settles the held seat at once.
+- Player pays, and an admin also credits manually → the surplus stays in the wallet.
+
+## 8. F6 — Wallet, Membership, Donation
+
+### User Stories
+- As a member, I top up my wallet through the gateway.
+- As an admin, I credit a member's wallet for cash received offline (DEC-005).
+- As a member, I buy a monthly membership or donate toward shuttlecocks from my wallet.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F6-01 | Every balance change is one append-only ledger entry. `wallets.balance_idr` is updated in the same transaction and always equals the ledger sum. |
+| AC-F6-02 | A gateway top-up credits the wallet only on a verified settlement webhook. Starting a top-up writes no ledger entry. |
+| AC-F6-03 | A manual credit needs a positive amount and a reason, records the acting admin, and then runs settlement for that member's held requests. |
+| AC-F6-04 | Balance can never go negative; an insufficient debit fails. |
+| AC-F6-05 | A superadmin can post a signed adjustment with a reason to correct mistakes. Ledger entries are never edited or deleted. |
+| AC-F6-06 | Membership: one per member per calendar month, bought from the wallet at the price in settings; unavailable while the price is unset (DEC-013). |
+| AC-F6-07 | Donation: any positive amount up to the balance, debited from the wallet (DEC-014). |
+| AC-F6-08 | Top-up amount is at least the configured minimum (default Rp 10.000). |
+
+### Edge Cases
+- Credit to an unknown member → 404.
+- Membership bought after a seat in that month was already paid → no retroactive refund.
+
+## 9. F7 — Match History & Media
+
+### User Stories
+- As an admin, I view all match history for 3 months.
+- As a member, I view only matches I attended, with the player list and games per player.
+- As host or admin, I upload photos and videos as documentation.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F7-01 | Attended = `confirmed` request on a match that ended and was not cancelled (DEC-012). |
+| AC-F7-02 | Admin history lists completed matches of the last 3 months; member history lists attended matches with no time limit. Both are query filters; nothing is deleted. |
+| AC-F7-03 | History detail lists confirmed players and `games_played` per player, entered by the match host or an admin after the match starts. |
+| AC-F7-04 | Media upload and delete: the match host, admins, superadmins. View: players who attended, the host, admins. |
+| AC-F7-05 | Files live on a server volume outside the containers; the database stores the path. Photos ≤ 10 MB (JPEG, PNG, WebP), videos ≤ 100 MB (MP4), at most 30 files per match. Type is checked from file content, not only the name (DEC-017). |
+
+### Edge Cases
+- Upload by anyone else → 403.
+- Oversized or wrong-type file → 422.
+
+## 10. F8 — Reward Engine
+
+### User Stories
+- As a member attending 5 matches within 2 months, I earn 1 free seat valid 1 month from the fifth match.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F8-01 | After a match ends, the worker checks each attendee: if they have 5 attended matches within the 2 months ending at this match, none of them already counted for an earlier reward, a reward is issued. |
+| AC-F8-02 | The reward expires 1 month after the fifth match's end. It is used at approval time, before the wallet is charged (DEC-015). |
+| AC-F8-03 | An admin can switch issuing on or off. Switching off does not remove rewards already earned. |
+| AC-F8-04 | A redeemed reward confirms one seat with no charge and is recorded on the request (`payment_method = reward`). |
+| AC-F8-05 | A member is notified when a reward is earned. |
+
+### Edge Cases
+- A match paid with a reward is cancelled → the reward becomes unused again.
+- An expired reward is simply ignored by settlement.
+
+## 11. F9 — Notifications
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F9-01 | Events: request approved (with hold deadline if payment is due), request rejected, payment confirmed, hold expired, late payment kept in wallet, match cancelled, reward earned, manual credit received. |
+| AC-F9-02 | Channels: in-app list with unread count, and email (DEC-011). |
+| AC-F9-03 | A notification row is written in the same transaction as the event. Email is sent afterwards by the worker and never blocks or rolls back the payment. |
+| AC-F9-04 | Failed email is retried up to 5 times with growing delay; the outcome is stored. |
+
+### Edge Cases
+- SMTP not configured → in-app only.
+- Guest → no notifications; the request page shows the live status.
+
+## 12. F10 — Finance Dashboard & Admin
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F10-01 | For a date range the dashboard shows: cash in (gateway top-ups + manual credits), fee income, membership income, donations, court costs (`court_cost_per_hour_idr × duration_hours` of matches that ran), other expenses, and current total member wallet balance. |
+| AC-F10-02 | Superadmins add and delete expenses with category (`drinking_water`, `shuttlecock`, `other`), amount, date and note. |
+| AC-F10-03 | Superadmins search users and change role and status. A superadmin cannot demote or suspend themselves. |
+| AC-F10-04 | Admins search members and view any member's wallet and ledger. |
+| AC-F10-05 | Settings: reward on/off (admin), membership price and minimum top-up (superadmin). |
+
+## 13. Out of Scope (Feature Level)
+
+Native mobile apps, multi-tenancy, automated waiting-list promotion, double-entry accounting, social chat, gateway refunds, PWA/offline, WhatsApp, no-show tracking. See PRD.md §10.
