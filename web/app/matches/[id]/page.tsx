@@ -378,7 +378,7 @@ function MediaItem({ item, onDelete }: { item: Media; onDelete?: () => void }) {
       ) : photo ? (
         <img src={url} alt={t.media.photoAlt(fmtDate(item.created_at))} className="size-full object-cover" />
       ) : (
-        <video src={url} controls autoPlay className="size-full bg-fg" />
+        <video src={url} controls autoPlay className="size-full bg-black" />
       )}
       {onDelete && (
         <Button className="absolute top-1 right-1 min-h-11 bg-surface" onClick={onDelete}>

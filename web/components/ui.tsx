@@ -5,16 +5,16 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 import { errorText } from "@/lib/api";
 import { t } from "@/lib/strings";
 
-// DESIGN.md §9: primary = lime pill with ink label (one per viewport), secondary = ink outline, tertiary = text.
+// DESIGN.md §9: primary = green fill with a glow (one per viewport), secondary = ring outline, tertiary = text.
 const variants = {
-  primary: "bg-lime px-5 text-fg hover:brightness-[0.94]",
-  secondary: "border border-primary px-5 text-primary hover:bg-primary/6",
+  primary: "bg-accent px-5 text-on-accent shadow-[0_0_32px_-4px_rgba(124,255,79,.35)] hover:brightness-110",
+  secondary: "border-[1.5px] border-border px-5 text-fg hover:border-accent",
   tertiary: "px-3 text-secondary hover:bg-primary/6",
 };
 type Variant = keyof typeof variants;
 
 export const buttonClass = (variant: Variant = "secondary") =>
-  `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full font-medium disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]}`;
+  `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl font-medium transition-[border-radius] duration-200 hover:rounded-[999px] disabled:hover:rounded-2xl disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]}`;
 
 export function Button({
   variant,
@@ -26,7 +26,7 @@ export function Button({
 
 // 16 px text on phones so iOS does not zoom on focus (DESIGN.md §10).
 export const controlClass =
-  "block min-h-11 w-full rounded-sm border border-border bg-surface px-3 text-base aria-invalid:border-danger md:text-[0.9375rem]";
+  "block min-h-11 w-full rounded-2xl border-[1.5px] border-border bg-surface px-3 text-base aria-invalid:border-danger md:text-[0.9375rem]";
 
 function Field({
   label,
@@ -81,7 +81,7 @@ export function Select({ label, error, className, ...props }: SelectHTMLAttribut
 export function Checkbox({ label, ...props }: InputHTMLAttributes<HTMLInputElement> & { label: string }) {
   return (
     <label className="flex min-h-11 items-center gap-3">
-      <input type="checkbox" className="size-5 accent-primary" {...props} />
+      <input type="checkbox" className="size-5 accent-accent" {...props} />
       {label}
     </label>
   );
@@ -111,7 +111,7 @@ const statusTone: Record<keyof typeof t.status, keyof typeof tones> = {
 export function Chip({ status }: { status: keyof typeof t.status }) {
   return (
     <span
-      className={`caption inline-block rounded-sm border bg-surface px-2 py-0.5 whitespace-nowrap ${tones[statusTone[status]]}`}
+      className={`caption inline-block rounded-full border bg-surface px-2.5 py-0.5 whitespace-nowrap ${tones[statusTone[status]]}`}
     >
       {t.status[status]}
     </span>
@@ -299,7 +299,7 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby={titleId}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] border border-border bg-surface p-6 text-fg backdrop:bg-fg/40"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl border-[1.5px] border-border bg-surface p-6 text-fg backdrop:bg-black/70"
     >
       <h2 id={titleId} className="mb-3">
         {title}

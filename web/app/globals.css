@@ -1,30 +1,33 @@
 @import "tailwindcss";
 
-/* DESIGN.md §4: Limeledger palette (ink + electric lime) */
+/* DESIGN.md §4: Pulsering palette (near-black + one halogen green) */
 @theme {
-  --color-primary: #0d0f0c;
-  --color-secondary: #0d0f0c;
-  --color-accent: #0d0f0c; /* focus ring, countdown, current nav: ink, because lime fails contrast as a line or text */
-  --color-lime: #c6f432; /* fill only, always with ink text on it */
-  --color-success: #15803d;
-  --color-warning: #8f5500;
-  --color-danger: #c42b2b;
-  --color-bg: #f5f6f2;
-  --color-surface: #ffffff;
-  --color-fg: #0d0f0c;
-  --color-muted: #54594e;
-  --color-border: #dde0d6;
-  --radius-sm: 10px;
+  --color-primary: #eaf2ec; /* brand text, tints */
+  --color-secondary: #7cff4f; /* links */
+  --color-accent: #7cff4f; /* the only bright colour: primary action, focus, countdown, active nav */
+  --color-on-accent: #07110a; /* text on a green fill */
+  --color-success: #7cff4f;
+  --color-warning: #f5b841;
+  --color-danger: #ff5a5f;
+  --color-bg: #0a0c0b;
+  --color-surface: #111513;
+  --color-fg: #eaf2ec;
+  --color-muted: #8a9890;
+  --color-border: #26302b;
+  --radius-sm: 8px;
 }
 
 @theme inline {
   --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-display: var(--font-sora), system-ui, sans-serif;
+  --font-display: var(--font-outfit), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, monospace;
 }
 
 /* DESIGN.md §5 */
 @layer base {
+  html {
+    color-scheme: dark; /* native date pickers, selects and scrollbars follow the theme */
+  }
   body {
     background: var(--color-bg);
     color: var(--color-fg);
@@ -34,7 +37,7 @@
   }
   h1,
   h2 {
-    font-family: var(--font-sora), system-ui, sans-serif;
+    font-family: var(--font-outfit), system-ui, sans-serif;
   }
   h1 {
     font-size: clamp(1.5rem, 6vw, 2rem);

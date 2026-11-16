@@ -153,7 +153,7 @@ function NavIcon({ item }: { item: NavItem }) {
         <path d={item.icon} />
       </svg>
       {!!item.badge && (
-        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-lime px-1 text-center font-mono text-[0.6875rem] leading-4 text-fg">
+        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-accent px-1 text-center font-mono text-[0.6875rem] leading-4 text-on-accent">
           {item.badge}
           <span className="sr-only"> {t.nav.unread}</span>
         </span>
@@ -187,7 +187,7 @@ function Layout({ children }: { children: ReactNode }) {
             href={i.href}
             aria-current={current(i.href)}
             title={i.label}
-            className="flex min-h-11 items-center gap-3 border-l-2 border-transparent px-5 text-muted hover:bg-primary/6 aria-[current]:border-lime aria-[current]:bg-primary/6 aria-[current]:font-medium aria-[current]:text-primary last:mt-auto last:mb-4 lg:px-4"
+            className="flex min-h-11 items-center gap-3 border-l-2 border-transparent px-5 text-muted hover:bg-primary/6 aria-[current]:border-accent aria-[current]:bg-primary/6 aria-[current]:font-medium aria-[current]:text-primary last:mt-auto last:mb-4 lg:px-4"
           >
             <NavIcon item={i} />
             <span className="max-lg:sr-only">{i.label}</span>

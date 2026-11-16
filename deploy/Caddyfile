@@ -1,6 +1,7 @@
-# DOMAIN is a real hostname in production (automatic Let's Encrypt certificate).
-# With DOMAIN=localhost Caddy issues a certificate from its own local CA, for testing.
-{$DOMAIN} {
+# SITE_ADDRESS defaults to DOMAIN: a real hostname gets an automatic Let's Encrypt certificate,
+# and localhost gets one from Caddy's own local CA, for testing.
+# Behind a proxy that already terminates TLS, set SITE_ADDRESS=:80 and keep DOMAIN as the public hostname.
+{$SITE_ADDRESS} {
 	encode zstd gzip
 
 	header {

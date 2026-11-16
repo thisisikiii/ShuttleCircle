@@ -28,30 +28,28 @@ The system adapts a **dashboard-first** grammar: persistent left rail (role-scop
 
 ## 4. Semantic Color System
 
-Palette adopted from the owner's design reference `design-systems-56/13-limeledger` (ink black + electric lime): sporty, high contrast, and numbers-first, which suits seat counts, wallet amounts and the payment countdown, and stays readable on a phone at the court.
+Palette from the owner's design reference `design-systems-56/17-pulsering`, chosen by the owner: a dark, kinetic system with one halogen green. It replaced the earlier Limeledger choice.
 
 ```css
 :root {
-  --color-primary: #0D0F0C;   /* ink: text, outlines, secondary buttons */
-  --color-secondary: #0D0F0C; /* links (underlined) */
-  --color-accent: #0D0F0C;    /* focus ring */
-  --color-lime: #C6F432;      /* primary CTA fill, countdown marker, active nav, badge */
-  --color-success: #15803D;   /* confirmed */
-  --color-warning: #8F5500;   /* pending, hold running */
-  --color-danger: #C42B2B;    /* expired, cancelled, rejected */
-  --color-bg: #F5F6F2;        /* page */
-  --color-surface: #FFFFFF;   /* panels, tables, inputs */
-  --color-fg: #0D0F0C;        /* primary text */
-  --color-muted: #54594E;     /* secondary text, captions */
-  --color-border: #DDE0D6;    /* hairline rules */
+  --color-bg: #0A0C0B;        /* page, near-black */
+  --color-surface: #111513;   /* panels, tables, inputs */
+  --color-fg: #EAF2EC;        /* primary text */
+  --color-muted: #8A9890;     /* secondary text, captions */
+  --color-border: #26302B;    /* hairlines, ring outlines */
+  --color-accent: #7CFF4F;    /* the only bright colour: primary action, focus, countdown, active nav, links */
+  --color-on-accent: #07110A; /* text on a green fill */
+  --color-success: #7CFF4F;   /* confirmed */
+  --color-warning: #F5B841;   /* pending, hold running */
+  --color-danger: #FF5A5F;    /* expired, cancelled, rejected */
 }
 ```
 
-**Usage rules:** Neutrals occupy ≥90% of every screen. Lime is a fill only and always carries ink text; it is never used as text or as a thin line on white, where it fails contrast. Lime appears on the one primary CTA per viewport, behind the live 30-minute countdown, on the active navigation marker and on the unread badge. Semantic colors appear only as status chips with text labels. Chips map one-to-one to the request states in FEATURES.md §2: `pending` (warning), `awaiting_payment` (warning, with countdown), `confirmed` (success), `rejected`, `expired`, `cancelled` (danger). Chip text is the Bahasa Indonesia label for the state (DEC-019). Limeledger's own success `#1E9E5A` and danger `#D93838` were darkened because they fall below 4.5:1 as chip text on white. Gradients are prohibited.
+**Usage rules:** Backgrounds stay near-black. Halogen green is the single signal colour; text on a green fill is near-black. The glow (`0 0 32px -4px rgba(124,255,79,.35)`) belongs to the one primary action per viewport only. Semantic colors appear as status chips with text labels. Chips map one-to-one to the request states in FEATURES.md §2: `pending` (warning), `awaiting_payment` (warning, with countdown), `confirmed` (success), `rejected`, `expired`, `cancelled` (danger). Chip text is the Bahasa Indonesia label for the state (DEC-019). Amber `#F5B841` was added for warning because Pulsering defines none. Pulsering's cyan secondary accent is not used. All text pairs measure above 6:1 on both background and surface. Native controls follow the theme through `color-scheme: dark`.
 
 ## 5. Typography & Type Scale
 
-- **Display (h1, h2):** `Sora` 600, tight tracking.
+- **Display (h1, h2):** `Outfit` 600.
 - **Body / UI:** `Inter`.
 - **Numeric/Data:** `JetBrains Mono`, tabular numerals: wallet amounts, timers, seat counts.
 
@@ -66,7 +64,7 @@ All three load through `next/font/google`, which self-hosts the files at build t
 | caption | 0.8125rem | 500 | 1.4 | 0.01em | Labels, status |
 | mono | 0.875rem | 500 | 1.4 | 0 | Amounts, timers |
 
-**Shape:** buttons are pills; inputs, chips and the countdown marker use a 10px radius. Limeledger's bento cards and ink hero cards are not used: section 8 (card discipline) still applies, because the admin and host screens are dense tables.
+**Shape and motion:** buttons and inputs are 16px rounded rectangles with a 1.5px border; a button morphs to a pill on hover (200 ms), which is Pulsering's signature. Chips are pills. Not adopted from Pulsering: uppercase labels (captions here are often full sentences), concentric double rings, bento tiles and the centre dock action, because section 8 (card discipline) and the dense admin tables come first. Motion respects `prefers-reduced-motion`.
 
 ## 6. Layout Strategy & Anti-Repetition Rules
 
@@ -94,10 +92,10 @@ Cards are **allowed only** for: calendar day cells, request list rows (as border
 
 ## 9. Component Rules & Action Hierarchy
 
-- **Primary:** `--color-lime` pill with ink label, one per viewport (e.g., *Approve & Charge*, *Pay Now*).
-- **Secondary:** ink-outlined pill, transparent fill.
-- **Tertiary:** text-only ink.
-- **States:** hover = 6% darken; focus = 2px ink ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = ink 4% tint; active nav item = ink 6% tint + 2px lime bar. All contrast meets WCAG AA.
+- **Primary:** green fill with near-black label and a glow, one per viewport (e.g., *Approve & Charge*, *Pay Now*).
+- **Secondary:** 1.5px ring outline in `--color-border`; the ring turns green on hover.
+- **Tertiary:** text-only green.
+- **States:** hover = 6% darken; focus = 2px green ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = light 4% tint; active nav item = light 6% tint + 2px green bar. All contrast meets WCAG AA.
 
 ## 10. Behavioral Responsive Design
 

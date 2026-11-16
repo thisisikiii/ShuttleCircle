@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono, Sora } from "next/font/google";
+import { Inter, JetBrains_Mono, Outfit } from "next/font/google";
 import type { ReactNode } from "react";
 import { App } from "@/components/shell";
 import { t } from "@/lib/strings";
 import "./globals.css";
 
 const sans = Inter({ subsets: ["latin"], variable: "--font-inter" });
-const display = Sora({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-sora" });
+const display = Outfit({ subsets: ["latin"], weight: ["600", "700"], variable: "--font-outfit" });
 const mono = JetBrains_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-jetbrains" });
 
 export const metadata: Metadata = { title: t.app.name, description: t.app.description };
