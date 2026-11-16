@@ -37,14 +37,14 @@ export default function CalendarPage() {
     <>
       <PageHeader title={t.calendar.title}>{create}</PageHeader>
       <div className="mb-4 flex items-center justify-between gap-2">
-        <Button variant="tertiary" disabled={offset <= -1} onClick={() => setOffset(offset - 1)}>
-          ‹ {t.calendar.prev}
+        <Button variant="tertiary" className="shrink-0" aria-label={t.calendar.prev} disabled={offset <= -1} onClick={() => setOffset(offset - 1)}>
+          ‹ <span className="max-md:hidden">{t.calendar.prev}</span>
         </Button>
-        <h2 aria-live="polite" className="text-center">
+        <h2 aria-live="polite" className="text-center max-md:text-xl">
           {fmtMonth(first)}
         </h2>
-        <Button variant="tertiary" disabled={offset >= 3} onClick={() => setOffset(offset + 1)}>
-          {t.calendar.next} ›
+        <Button variant="tertiary" className="shrink-0" aria-label={t.calendar.next} disabled={offset >= 3} onClick={() => setOffset(offset + 1)}>
+          <span className="max-md:hidden">{t.calendar.next}</span> ›
         </Button>
       </div>
 

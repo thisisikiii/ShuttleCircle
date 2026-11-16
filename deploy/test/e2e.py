@@ -251,9 +251,8 @@ check(host.call("PATCH", f"/matches/{m2}", {"capacity": 0})[0] == 422 and code(h
 check(code(host.call("PATCH", f"/matches/{m1}", {"price_idr": 1})) == (409, "PRICE_LOCKED"), "price locked once seats are taken")
 
 print("7. manual credit settles a held seat")
-held = next(r for r in reqs if budi.my_request(r)["status"] == "awaiting_payment") if any(x["id"] in reqs and x["status"] == "awaiting_payment" for x in budi.data("GET", "/me/join-requests")) else None
-winner = budi if held else citra
-held = held or next(r for r in reqs if citra.my_request(r)["status"] == "awaiting_payment")
+# Whoever won the race for the last seat holds it unpaid.
+winner, held = (budi, reqs[0]) if budi.my_request(reqs[0])["status"] == "awaiting_payment" else (citra, reqs[1])
 root.data("POST", f"/wallets/{winner.id}/credits", {"amount_idr": 50000, "note": "tunai"})
 check(winner.my_request(held)["status"] == "confirmed" and winner.balance() == 0, "credit confirms the held seat at once")
 

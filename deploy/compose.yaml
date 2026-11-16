@@ -30,6 +30,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       COOKIE_SECRET: ${COOKIE_SECRET}
       MEDIA_DIR: /media
+      # Keep resident memory low: few heap arenas, and a fixed mmap threshold so each
+      # 19 MB Argon2 buffer is returned to the OS after the hash instead of staying on the heap.
+      MALLOC_ARENA_MAX: "2"
+      MALLOC_MMAP_THRESHOLD_: "1048576"
       RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-10}
       MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:-}
       MIDTRANS_PRODUCTION: ${MIDTRANS_PRODUCTION:-false}

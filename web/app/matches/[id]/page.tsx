@@ -209,7 +209,7 @@ function Roster({ m, editable }: { m: MatchDetail; editable: boolean }) {
                     min={0}
                     inputMode="numeric"
                     aria-label={t.match.gamesOf(r.name)}
-                    className={`${controlClass} w-20 font-mono`}
+                    className={`${controlClass} w-20! shrink-0 font-mono`}
                     value={games[r.join_request_id] ?? r.games_played ?? ""}
                     onChange={(e) => setGames({ ...games, [r.join_request_id]: e.target.value })}
                   />

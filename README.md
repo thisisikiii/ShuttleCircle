@@ -26,3 +26,28 @@
 - [TASKS.md](TASKS.md)
 
 There is no `REQUIREMENTS.md`, `USER_FLOW.md`, `API_SPEC.md` or `DATA_MODEL.md`; their content lives in `FEATURES.md`, `API.md` and `DATABASE.md`.
+
+## Code
+
+- `api/` Rust (Axum, SQLx) service with the background worker; schema in `api/migrations/`.
+- `web/` Next.js app (client-rendered, Bahasa Indonesia, Limeledger palette).
+- `deploy/` Compose file, Caddyfile, `.env.example`, backup script, tests.
+
+## Run it
+
+```sh
+cd deploy
+cp .env.example .env        # fill in DOMAIN and the three secrets
+docker compose up -d --build
+# register on the site, then make that account superadmin:
+docker compose exec api shuttlecircle create-superadmin --email you@example.com
+```
+
+## Test it
+
+```sh
+cd deploy                   # .env: DOMAIN=localhost, MIDTRANS_SERVER_KEY=<any test value>, RATE_LIMIT_PER_MIN=1000
+docker compose -f compose.yaml -f test/compose.test.yaml up -d --build
+python3 test/e2e.py         # 124 API checks through Caddy
+node test/ui_smoke.cjs      # needs playwright-core and Chromium
+```

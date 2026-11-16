@@ -94,7 +94,7 @@ The API reports which optional features are configured through `GET /api/v1/heal
 2. Push to a registry (GHCR).
 3. On the VPS: `docker compose pull && docker compose up -d`.
 4. `api` runs pending SQLx migrations at start, after `deploy/backup.sh` has taken a dump.
-5. First install only: `docker compose exec api shuttlecircle create-superadmin --email <email>` (DEC-020).
+5. First install only: register an account on the site, then promote it with `docker compose exec api shuttlecircle create-superadmin --email <email>` (DEC-020).
 
 ### External setup
 
@@ -116,7 +116,8 @@ Docker `healthcheck` on `api` (`/healthz`) and `db`, `restart: unless-stopped` o
 
 ## 7. Testing
 
-- **API integration tests** (Rust, real PostgreSQL in Docker): state machine transitions, role matrix, last-seat concurrency (two parallel approvals, exactly one wins), wallet ledger sum equals balance, webhook signature and idempotency, late payment kept in wallet, hold expiry with an injected clock, reward boundary at the fifth match.
-- The worker and settlement take the current time as a parameter so tests can move the clock.
-- **Midtrans** is exercised in sandbox; in tests it is replaced by a local stub server.
-- **Web**: Playwright smoke tests at 375 px, 768 px and 1280 px for guest join, member pay, host approve.
+- **End-to-end API test** (`deploy/test/e2e.py`, standard-library Python, 124 checks) against the real running stack through Caddy: state machine transitions, role matrix, last-seat concurrency (two parallel approvals, exactly one wins), wallet ledger sum equals balance, webhook signature and idempotency, late payment kept in wallet, hold expiry, reward at the fifth match and not the sixth, match cancellation refund, session rotation and replay.
+- Time-dependent rules use the database clock; the test moves time by editing rows with `psql` and waiting for the 30-second worker tick.
+- **Midtrans** is replaced in tests by a stub container (`deploy/test/compose.test.yaml`). A real sandbox payment is still to be run once keys exist.
+- **Web** (`deploy/test/ui_smoke.cjs`, Playwright with system Chromium): registers through the real form, then walks ten screens at 375, 768 and 1280 px and fails on horizontal overflow, console errors or a missing heading.
+- **Unit tests** (`cargo test`): cookie signing, role order, webhook signature.
