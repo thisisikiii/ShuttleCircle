@@ -1,0 +1,89 @@
+@import "tailwindcss";
+
+/* DESIGN.md §4: Limeledger palette (ink + electric lime) */
+@theme {
+  --color-primary: #0d0f0c;
+  --color-secondary: #0d0f0c;
+  --color-accent: #0d0f0c; /* focus ring, countdown, current nav: ink, because lime fails contrast as a line or text */
+  --color-lime: #c6f432; /* fill only, always with ink text on it */
+  --color-success: #15803d;
+  --color-warning: #8f5500;
+  --color-danger: #c42b2b;
+  --color-bg: #f5f6f2;
+  --color-surface: #ffffff;
+  --color-fg: #0d0f0c;
+  --color-muted: #54594e;
+  --color-border: #dde0d6;
+  --radius-sm: 10px;
+}
+
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-sora), system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+}
+
+/* DESIGN.md §5 */
+@layer base {
+  body {
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  h1,
+  h2 {
+    font-family: var(--font-sora), system-ui, sans-serif;
+  }
+  h1 {
+    font-size: clamp(1.5rem, 6vw, 2rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+  h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+  h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.3;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    ::before,
+    ::after {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+@utility caption {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+@utility mono {
+  font-family: var(--font-jetbrains), ui-monospace, monospace;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+@utility link {
+  color: var(--color-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

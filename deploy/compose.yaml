@@ -1,0 +1,78 @@
+# ShuttleCircle: one VPS, four containers. Run from this directory with a filled-in .env.
+#   docker compose up -d --build        (build on this machine)
+#   docker compose pull && docker compose up -d   (images built elsewhere, DEC-018)
+name: shuttlecircle
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - api
+      - web
+
+  api:
+    image: ${API_IMAGE:-shuttlecircle-api}
+    build: ../api
+    restart: unless-stopped
+    stop_signal: SIGINT
+    environment:
+      DOMAIN: ${DOMAIN}
+      DATABASE_URL: postgres://shuttlecircle:${POSTGRES_PASSWORD}@db/shuttlecircle
+      JWT_SECRET: ${JWT_SECRET}
+      COOKIE_SECRET: ${COOKIE_SECRET}
+      MEDIA_DIR: /media
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-10}
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY:-}
+      MIDTRANS_PRODUCTION: ${MIDTRANS_PRODUCTION:-false}
+      MIDTRANS_SNAP_URL: ${MIDTRANS_SNAP_URL:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+    volumes:
+      - media:/media
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/api/v1/healthz"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  web:
+    image: ${WEB_IMAGE:-shuttlecircle-web}
+    build: ../web
+    restart: unless-stopped
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: shuttlecircle
+      POSTGRES_DB: shuttlecircle
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shuttlecircle"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:

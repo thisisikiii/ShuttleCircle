@@ -1,0 +1,12 @@
+# Test overlay: routes Snap calls to a local stub so payments can be exercised without Midtrans.
+#   docker compose -f compose.yaml -f test/compose.test.yaml up -d --build
+services:
+  midtrans-stub:
+    image: python:3-alpine
+    restart: unless-stopped
+    volumes:
+      - ./test/midtrans_stub.py:/stub.py:ro
+    command: python /stub.py
+  api:
+    environment:
+      MIDTRANS_SNAP_URL: http://midtrans-stub:8000

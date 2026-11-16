@@ -28,39 +28,45 @@ The system adapts a **dashboard-first** grammar: persistent left rail (role-scop
 
 ## 4. Semantic Color System
 
+Palette adopted from the owner's design reference `design-systems-56/13-limeledger` (ink black + electric lime): sporty, high contrast, and numbers-first, which suits seat counts, wallet amounts and the payment countdown, and stays readable on a phone at the court.
+
 ```css
 :root {
-  --color-primary: #0F3D2E;   /* deep court green — brand anchor */
-  --color-secondary: #1F6F5C; /* secondary actions, links */
-  --color-accent: #C2410C;    /* primary CTA + live seat-hold countdown only; 5.2:1 with white text */
-  --color-success: #2E7D32;   /* payment confirmed, approved */
-  --color-warning: #8F5500;   /* pending, hold expiring; 6:1 on white */
-  --color-danger: #B3261E;    /* expired, cancelled, rejected */
-  --color-bg: #F7F6F2;        /* warm off-white page */
-  --color-surface: #FFFFFF;   /* panels, tables */
-  --color-fg: #14181A;        /* primary text */
-  --color-muted: #5B6467;     /* secondary text, captions */
-  --color-border: #DAD7CE;    /* hairline rules */
+  --color-primary: #0D0F0C;   /* ink: text, outlines, secondary buttons */
+  --color-secondary: #0D0F0C; /* links (underlined) */
+  --color-accent: #0D0F0C;    /* focus ring */
+  --color-lime: #C6F432;      /* primary CTA fill, countdown marker, active nav, badge */
+  --color-success: #15803D;   /* confirmed */
+  --color-warning: #8F5500;   /* pending, hold running */
+  --color-danger: #C42B2B;    /* expired, cancelled, rejected */
+  --color-bg: #F5F6F2;        /* page */
+  --color-surface: #FFFFFF;   /* panels, tables, inputs */
+  --color-fg: #0D0F0C;        /* primary text */
+  --color-muted: #54594E;     /* secondary text, captions */
+  --color-border: #DDE0D6;    /* hairline rules */
 }
 ```
 
-**Usage rules:** Neutrals occupy ≥90% of every screen. `--color-accent` appears only on the primary CTA and the live 30-minute countdown. Semantic colors appear only as status chips with text labels. Chips map one-to-one to the request states in FEATURES.md §2: `pending` (warning), `awaiting_payment` (warning, with countdown), `confirmed` (success), `rejected`, `expired`, `cancelled` (danger). Chip text is the Bahasa Indonesia label for the state (DEC-019). Neon blue/purple gradients are prohibited. The previous accent `#E4572E` and warning `#B26A00` were replaced because white-on-accent (3.7:1) and warning-on-white (4.2:1) failed WCAG AA for body-size text.
+**Usage rules:** Neutrals occupy ≥90% of every screen. Lime is a fill only and always carries ink text; it is never used as text or as a thin line on white, where it fails contrast. Lime appears on the one primary CTA per viewport, behind the live 30-minute countdown, on the active navigation marker and on the unread badge. Semantic colors appear only as status chips with text labels. Chips map one-to-one to the request states in FEATURES.md §2: `pending` (warning), `awaiting_payment` (warning, with countdown), `confirmed` (success), `rejected`, `expired`, `cancelled` (danger). Chip text is the Bahasa Indonesia label for the state (DEC-019). Limeledger's own success `#1E9E5A` and danger `#D93838` were darkened because they fall below 4.5:1 as chip text on white. Gradients are prohibited.
 
 ## 5. Typography & Type Scale
 
-- **Primary:** `IBM Plex Sans` — engineered, high legibility at dense table sizes, non-generic.
-- **Numeric/Data:** `IBM Plex Mono` — wallet amounts, timers, match IDs must be tabular.
+- **Display (h1, h2):** `Sora` 600, tight tracking.
+- **Body / UI:** `Inter`.
+- **Numeric/Data:** `JetBrains Mono`, tabular numerals: wallet amounts, timers, seat counts.
 
-Load both through `next/font/google` (weights 400, 500, 600, 700 for Sans; 400, 500 for Mono). This self-hosts the files at build time: no request to Google at runtime and no layout shift.
+All three load through `next/font/google`, which self-hosts the files at build time: no request to Google at runtime and no layout shift.
 
 | Level | Size | Weight | Line-Height | Tracking | Rationale |
 |:---|:---|:---|:---|:---|:---|
-| h1 | 2rem | 600 | 1.2 | -0.01em | Page titles |
+| h1 | clamp(1.5rem, 6vw, 2rem) | 600 | 1.15 | -0.03em | Page titles |
 | h2 | 1.5rem | 600 | 1.25 | -0.01em | Section heads |
 | h3 | 1.125rem | 600 | 1.3 | 0 | Panel titles |
-| body | 0.9375rem | 400 | 1.5 | 0 | Default |
+| body | 0.9375rem | 400 | 1.5 | 0 | Default (16px in inputs on phones) |
 | caption | 0.8125rem | 500 | 1.4 | 0.01em | Labels, status |
 | mono | 0.875rem | 500 | 1.4 | 0 | Amounts, timers |
+
+**Shape:** buttons are pills; inputs, chips and the countdown marker use a 10px radius. Limeledger's bento cards and ink hero cards are not used: section 8 (card discipline) still applies, because the admin and host screens are dense tables.
 
 ## 6. Layout Strategy & Anti-Repetition Rules
 
@@ -88,10 +94,10 @@ Cards are **allowed only** for: calendar day cells, request list rows (as border
 
 ## 9. Component Rules & Action Hierarchy
 
-- **Primary:** `--color-accent` filled, one per viewport (e.g., *Approve & Charge*, *Pay Now*).
-- **Secondary:** outlined `--color-primary` border, transparent fill.
-- **Tertiary:** text-only `--color-secondary`.
-- **States:** hover = 6% darken; focus = 2px `--color-accent` ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = `--color-primary` 4% tint + left 2px accent bar. All contrast meets WCAG AA.
+- **Primary:** `--color-lime` pill with ink label, one per viewport (e.g., *Approve & Charge*, *Pay Now*).
+- **Secondary:** ink-outlined pill, transparent fill.
+- **Tertiary:** text-only ink.
+- **States:** hover = 6% darken; focus = 2px ink ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = ink 4% tint; active nav item = ink 6% tint + 2px lime bar. All contrast meets WCAG AA.
 
 ## 10. Behavioral Responsive Design
 
