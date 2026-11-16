@@ -9,6 +9,7 @@ mod payments;
 mod requests;
 mod settle;
 mod wallet;
+mod whatsapp;
 mod worker;
 
 use axum::{
@@ -67,6 +68,7 @@ async fn healthz(State(st): State<AppState>) -> error::R<Json<Value>> {
         "gateway": st.cfg.midtrans_server_key.is_some(),
         "google": st.cfg.google.is_some(),
         "email": st.cfg.smtp.is_some(),
+        "whatsapp": st.cfg.waha.is_some(),
     }})))
 }
 
@@ -82,6 +84,7 @@ fn router(st: AppState) -> Router {
         .route("/matches/{id}/join-requests", post(requests::create))
         .route("/join-requests/{id}/pay", post(requests::pay))
         .route("/wallets/me/topups", post(wallet::topup))
+        .route("/invitations", post(notify::invite))
         .route_layer(middleware::from_fn_with_state(st.clone(), rate_limit));
 
     let api = Router::new()
@@ -120,7 +123,9 @@ fn router(st: AppState) -> Router {
         .route("/expenses/{id}", delete(admin::delete_expense))
         .route("/settings", get(admin::settings).patch(admin::update_settings))
         .route("/notifications", get(notify::list))
-        .route("/notifications/read", post(notify::read));
+        .route("/notifications/read", post(notify::read))
+        .route("/whatsapp", get(whatsapp::status))
+        .route("/whatsapp/logout", post(whatsapp::logout));
 
     Router::new().nest("/api/v1", api).with_state(st)
 }

@@ -1,7 +1,7 @@
 //! Background jobs (ARCHITECTURE.md §4). Each job is one idempotent step driven by the
 //! database clock, so a crash or restart loses nothing.
 
-use crate::{notify, AppState};
+use crate::{notify, whatsapp, AppState};
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use std::time::Duration;
@@ -11,11 +11,12 @@ pub async fn run(st: AppState) {
     let mut tick = tokio::time::interval(Duration::from_secs(30));
     loop {
         tick.tick().await;
-        let jobs: [(&str, sqlx::Result<()>); 5] = [
+        let jobs: [(&str, sqlx::Result<()>); 6] = [
             ("expire_holds", expire_holds(&st).await),
             ("close_started", close_started(&st).await),
             ("rewards", rewards(&st).await),
             ("email_outbox", email_outbox(&st).await),
+            ("whatsapp_outbox", whatsapp_outbox(&st).await),
             ("housekeeping", housekeeping(&st).await),
         ];
         for (name, res) in jobs {
@@ -128,6 +129,35 @@ async fn email_outbox(st: &AppState) -> sqlx::Result<()> {
                 .await?
             }
         };
+    }
+    Ok(())
+}
+
+/// WhatsApp copy of recent notifications for members who gave a number. At most 5 per tick,
+/// to stay far from bulk-sending patterns.
+/// shortcut: one attempt and no retry, and nothing older than an hour is sent; add attempts like the email outbox if messages get lost.
+async fn whatsapp_outbox(st: &AppState) -> sqlx::Result<()> {
+    if st.cfg.waha.is_none() {
+        return Ok(());
+    }
+    let due: Vec<(Uuid, String, Value)> = sqlx::query_as(
+        "SELECT n.id, u.whatsapp_number, n.payload FROM notifications n JOIN users u ON u.id = n.user_id          WHERE n.wa_sent_at IS NULL AND u.whatsapp_number IS NOT NULL AND n.created_at > now() - interval '1 hour'          ORDER BY n.created_at LIMIT 5",
+    )
+    .fetch_all(&st.db)
+    .await?;
+    // Not linked yet: leave the rows for a later tick.
+    if due.is_empty() || !whatsapp::ready(st).await {
+        return Ok(());
+    }
+    for (id, number, payload) in due {
+        let text = format!("*{}*
+{}
+
+{}", payload["title"].as_str().unwrap_or("ShuttleCircle"), payload["body"].as_str().unwrap_or_default(), st.cfg.public_url);
+        if let Err(e) = whatsapp::send(st, &number, &text).await {
+            tracing::warn!(error = %e, "notification whatsapp failed");
+        }
+        sqlx::query("UPDATE notifications SET wa_sent_at = now() WHERE id = $1").bind(id).execute(&st.db).await?;
     }
     Ok(())
 }

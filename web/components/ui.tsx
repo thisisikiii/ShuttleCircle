@@ -5,16 +5,16 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 import { errorText } from "@/lib/api";
 import { t } from "@/lib/strings";
 
-// DESIGN.md §9: primary = green fill with a glow (one per viewport), secondary = ring outline, tertiary = text.
+// DESIGN.md §9: primary = emerald fill, secondary = outline, tertiary = text.
 const variants = {
-  primary: "bg-accent px-5 text-on-accent shadow-[0_0_32px_-4px_rgba(124,255,79,.35)] hover:brightness-110",
-  secondary: "border-[1.5px] border-border px-5 text-fg hover:border-accent",
-  tertiary: "px-3 text-secondary hover:bg-primary/6",
+  primary: "bg-accent px-5 text-on-accent shadow-md shadow-emerald-700/20 hover:brightness-110 active:scale-[0.99]",
+  secondary: "border border-control bg-surface px-4 text-fg hover:border-accent",
+  tertiary: "px-3 text-secondary hover:bg-accent/10",
 };
 type Variant = keyof typeof variants;
 
 export const buttonClass = (variant: Variant = "secondary") =>
-  `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-2xl font-medium transition-[border-radius] duration-200 hover:rounded-[999px] disabled:hover:rounded-2xl disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]}`;
+  `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]}`;
 
 export function Button({
   variant,
@@ -26,7 +26,7 @@ export function Button({
 
 // 16 px text on phones so iOS does not zoom on focus (DESIGN.md §10).
 export const controlClass =
-  "block min-h-11 w-full rounded-2xl border-[1.5px] border-border bg-surface px-3 text-base aria-invalid:border-danger md:text-[0.9375rem]";
+  "block min-h-11 w-full rounded-xl border border-control bg-surface px-3.5 text-base text-fg placeholder:text-muted aria-invalid:border-danger md:text-sm";
 
 function Field({
   label,
@@ -43,7 +43,7 @@ function Field({
   const errorId = error ? `${id}-error` : undefined;
   return (
     <div className={className}>
-      <label htmlFor={id} className="caption mb-1 block">
+      <label htmlFor={id} className="label mb-1.5 block">
         {label}
       </label>
       {children(id, errorId)}
@@ -88,10 +88,10 @@ export function Checkbox({ label, ...props }: InputHTMLAttributes<HTMLInputEleme
 }
 
 const tones = {
-  neutral: "border-border text-muted",
-  success: "border-success text-success",
-  warning: "border-warning text-warning",
-  danger: "border-danger text-danger",
+  neutral: "bg-muted/15 text-label",
+  success: "bg-success/15 text-success",
+  warning: "bg-warning/15 text-warning",
+  danger: "bg-danger/15 text-danger",
 };
 const statusTone: Record<keyof typeof t.status, keyof typeof tones> = {
   pending: "warning",
@@ -111,7 +111,7 @@ const statusTone: Record<keyof typeof t.status, keyof typeof tones> = {
 export function Chip({ status }: { status: keyof typeof t.status }) {
   return (
     <span
-      className={`caption inline-block rounded-full border bg-surface px-2.5 py-0.5 whitespace-nowrap ${tones[statusTone[status]]}`}
+      className={`inline-block rounded-full px-2.5 py-1 text-[0.6875rem] leading-4 font-bold whitespace-nowrap ${tones[statusTone[status]]}`}
     >
       {t.status[status]}
     </span>
@@ -119,7 +119,7 @@ export function Chip({ status }: { status: keyof typeof t.status }) {
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div aria-hidden className={`rounded-sm bg-border/60 motion-safe:animate-pulse ${className}`} />;
+  return <div aria-hidden className={`rounded-xl bg-border motion-safe:animate-pulse ${className}`} />;
 }
 
 export function SkeletonRows({ rows = 5 }: { rows?: number }) {
@@ -145,7 +145,7 @@ export function Alert({
   return (
     <div
       role={tone === "danger" ? "alert" : "note"}
-      className={`my-3 flex flex-wrap items-center justify-between gap-x-4 border-l-2 bg-surface px-3 py-2 ${tone === "danger" ? "border-danger" : "border-muted"}`}
+      className={`my-3 flex flex-wrap items-center justify-between gap-x-4 rounded-xl border px-3.5 py-2.5 text-sm font-medium ${tone === "danger" ? "border-danger/30 bg-danger/10 text-danger" : "border-border bg-surface"}`}
     >
       <p>{children}</p>
       {action}
@@ -171,7 +171,7 @@ export function ErrorAlert({ error, onRetry }: { error: unknown; onRetry?: () =>
 
 export function Empty({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="py-10 text-center text-muted">
+    <div className="rounded-2xl border border-dashed border-control bg-surface px-4 py-10 text-center text-muted">
       <p>{children}</p>
       {action && <div className="mt-3">{action}</div>}
     </div>
@@ -210,21 +210,21 @@ export function LoadMore({
 
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
-    <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+    <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
       <h1>{title}</h1>
       {children && <div className="flex flex-wrap items-center gap-2">{children}</div>}
     </header>
   );
 }
 
-/** Summary strip: hairline-separated figures (wallet and finance). */
+/** Summary strip: one tile per figure (wallet and finance). */
 export function Strip({ items, className }: { items: { label: string; value: ReactNode }[]; className: string }) {
   return (
-    <dl className={`mb-6 grid gap-px border border-border bg-border ${className}`}>
+    <dl className={`mb-6 grid gap-3 ${className}`}>
       {items.map((item) => (
-        <div key={item.label} className="bg-surface p-3">
-          <dt className="caption text-muted">{item.label}</dt>
-          <dd className="mono mt-1 text-base">{item.value}</dd>
+        <div key={item.label} className="card p-4">
+          <dt className="label">{item.label}</dt>
+          <dd className="mono mt-1 text-xl font-extrabold text-primary">{item.value}</dd>
         </div>
       ))}
     </dl>
@@ -250,7 +250,7 @@ export function DataTable<T>({
       <thead className="max-md:sr-only">
         <tr>
           {columns.map((c) => (
-            <th key={c.head} scope="col" className={`caption py-2 pr-4 text-muted ${c.className ?? ""}`}>
+            <th key={c.head} scope="col" className={`label py-2 pr-4 ${c.className ?? ""}`}>
               {c.head}
             </th>
           ))}
@@ -299,7 +299,7 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby={titleId}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-2xl border-[1.5px] border-border bg-surface p-6 text-fg backdrop:bg-black/70"
+      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-3xl border border-border bg-surface p-6 text-fg shadow-2xl backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm"
     >
       <h2 id={titleId} className="mb-3">
         {title}

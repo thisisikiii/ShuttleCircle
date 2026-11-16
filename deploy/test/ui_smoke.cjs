@@ -28,7 +28,7 @@ const PAGES = ["/", "/requests", "/approvals", "/wallet", "/history", "/notifica
   await page.getByLabel("Email").fill(email);
   await page.getByLabel(/^Password/).fill("password-123");
   await page.getByRole("button", { name: "Buat akun" }).click();
-  await page.getByRole("heading", { name: "Kalender" }).waitFor();
+  await page.getByRole("heading", { name: /Siap turun/ }).waitFor();
   execFileSync("docker", ["compose", "exec", "-T", "api", "shuttlecircle", "create-superadmin", "--email", email]);
   await page.reload(); // a reload refreshes the session, which picks up the new role
 

@@ -25,17 +25,117 @@ export function App({ children }: { children: ReactNode }) {
   const isAuthRoute = AUTH_ROUTES.includes(usePathname());
   return (
     <QueryClientProvider client={client}>
-      {isAuthRoute ? <Centered>{children}</Centered> : <Session>{children}</Session>}
+      {isAuthRoute ? <Gateway>{children}</Gateway> : <Session>{children}</Session>}
     </QueryClientProvider>
   );
 }
 
-function Centered({ children }: { children: ReactNode }) {
+function Brand() {
   return (
-    <main className="mx-auto w-full max-w-sm px-4 py-12">
-      <p className="mb-8 text-lg font-semibold text-primary">{t.app.name}</p>
-      {children}
-    </main>
+    <span className="flex items-center gap-3">
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-linear-to-br from-emerald-400 to-lime-400 shadow-md shadow-emerald-500/20">
+        <svg
+          aria-hidden
+          viewBox="0 0 24 24"
+          className="size-6 fill-none stroke-slate-900"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 19a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM9.5 14.5 5 4l5 2 2-3 2 3 5-2-4.5 10.5M7.5 10h9" />
+        </svg>
+      </span>
+      <span className="text-xl font-extrabold tracking-tight text-white">
+        Shuttle<span className="text-lime">Circle</span>
+      </span>
+    </span>
+  );
+}
+
+function Centered({ children }: { children: ReactNode }) {
+  return <main className="mx-auto w-full max-w-sm px-4 py-12">{children}</main>;
+}
+
+/** Full-screen sign-in gateway (DESIGN.md §9): court backdrop, the form in a glass card, and the club guide. */
+function Gateway({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const tabs = [
+    { href: "/login", label: t.auth.login, on: pathname === "/login" },
+    { href: "/register", label: t.auth.register, on: pathname === "/register" },
+    { href: "/", label: t.common.guest, on: !AUTH_ROUTES.includes(pathname) },
+  ];
+  return (
+    <div className="on-dark relative flex min-h-dvh flex-col overflow-hidden bg-linear-to-br from-emerald-950 via-slate-950 to-emerald-950">
+      <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
+        <svg className="absolute inset-0 size-full opacity-20" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" fill="none">
+          <g stroke="#fff" strokeWidth="2">
+            <rect x="70" y="55" width="1060" height="690" strokeWidth="3" />
+            <path d="M70 115h1060M70 685h1060M150 55v690M1050 55v690M460 55v690M740 55v690M70 400h390M740 400h390" />
+          </g>
+          <path d="M600 35v730" stroke="#a3e635" strokeWidth="4" strokeDasharray="12 8" />
+          <path d="M180 580Q600 110 1020 490" stroke="#a3e635" strokeWidth="3" className="trajectory" />
+        </svg>
+        <div className="absolute -top-32 -left-32 size-[520px] rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="absolute -right-32 -bottom-32 size-[520px] rounded-full bg-lime-400/10 blur-3xl" />
+      </div>
+
+      <header className="relative mx-auto flex w-full max-w-6xl items-center justify-between px-4 pt-6 sm:px-10">
+        <Brand />
+        <span className="hidden items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-lime-300 sm:inline-flex">
+          <span className="size-2 rounded-full bg-lime" />
+          {t.gateway.badge}
+        </span>
+      </header>
+
+      <main className="relative mx-auto grid w-full max-w-6xl flex-1 items-start gap-8 px-4 py-8 sm:px-10 lg:grid-cols-12 lg:gap-10">
+        <div className="space-y-4 lg:order-2 lg:col-span-5">
+          <nav aria-label={t.gateway.modes} className="grid grid-cols-3 gap-1 rounded-2xl border border-white/15 bg-slate-900/80 p-1.5">
+            {tabs.map((tab) => (
+              <Link
+                key={tab.href}
+                href={tab.href}
+                aria-current={tab.on ? "page" : undefined}
+                className="flex min-h-11 items-center justify-center rounded-xl px-2 text-center text-xs font-bold text-slate-300 hover:text-white aria-[current]:bg-emerald-700 aria-[current]:text-white aria-[current]:shadow-sm"
+              >
+                {tab.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="rounded-3xl border border-white/15 bg-slate-900/85 p-6 shadow-2xl backdrop-blur-xl sm:p-7">{children}</div>
+        </div>
+
+        <div className="space-y-6 lg:order-1 lg:col-span-7">
+          <div className="rounded-3xl border border-white/10 bg-white/5 p-5 sm:p-6">
+            <p className="text-2xl leading-tight font-extrabold tracking-tight text-white sm:text-3xl">
+              {t.gateway.headline}
+              <br />
+              <span className="text-lime">{t.gateway.headline2}</span>
+            </p>
+            <p className="mt-2 text-sm leading-relaxed text-emerald-100/85">{t.gateway.intro}</p>
+          </div>
+          <section className="rounded-3xl border border-white/15 bg-slate-900/75 p-5 shadow-2xl sm:p-6">
+            <h2 className="mb-4 text-base">{t.gateway.faqTitle}</h2>
+            <div className="space-y-2.5">
+              {t.gateway.faq.map((item, i) => (
+                <details key={item.q} open={i === 0} className="group rounded-2xl border border-white/10 bg-slate-950/70">
+                  <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-bold text-white hover:bg-white/5 [&::-webkit-details-marker]:hidden">
+                    {item.q}
+                    <span aria-hidden className="text-lime transition-transform group-open:rotate-180">
+                      ⌄
+                    </span>
+                  </summary>
+                  <p className="border-t border-white/5 px-4 pt-2.5 pb-3.5 text-[0.8125rem] leading-relaxed text-slate-300">{item.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        </div>
+      </main>
+
+      <footer className="relative mx-auto w-full max-w-6xl border-t border-white/10 px-4 py-4 text-[0.6875rem] text-emerald-200/70 sm:px-10">
+        {t.app.description}
+      </footer>
+    </div>
   );
 }
 
@@ -60,7 +160,7 @@ function NicknamePrompt() {
   const [nickname, setNickname] = useState("");
   const enter = useAct(() => api.post("/auth/guest", { nickname: nickname.trim() }));
   return (
-    <Centered>
+    <Gateway>
       <h1 className="mb-2">{t.guest.title}</h1>
       <p className="mb-6 text-muted">{t.guest.intro}</p>
       <form
@@ -94,7 +194,7 @@ function NicknamePrompt() {
           {t.auth.register}
         </Link>
       </p>
-    </Centered>
+    </Gateway>
   );
 }
 
@@ -153,7 +253,7 @@ function NavIcon({ item }: { item: NavItem }) {
         <path d={item.icon} />
       </svg>
       {!!item.badge && (
-        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-accent px-1 text-center font-mono text-[0.6875rem] leading-4 text-on-accent">
+        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-lime px-1 text-center text-[0.6875rem] leading-4 font-bold text-slate-950">
           {item.badge}
           <span className="sr-only"> {t.nav.unread}</span>
         </span>
@@ -172,43 +272,42 @@ function Layout({ children }: { children: ReactNode }) {
       ? ("page" as const)
       : undefined;
   return (
-    <div className="md:pl-16 lg:pl-56">
-      <nav
-        aria-label={t.nav.label}
-        className="fixed inset-y-0 left-0 z-10 hidden w-16 flex-col border-r border-border bg-surface md:flex lg:w-56"
-      >
-        <p className="px-5 py-5 font-semibold text-primary lg:px-4">
-          <span className="lg:hidden">{t.app.short}</span>
-          <span className="max-lg:hidden">{t.app.name}</span>
-        </p>
-        {items.map((i) => (
-          <Link
-            key={i.href}
-            href={i.href}
-            aria-current={current(i.href)}
-            title={i.label}
-            className="flex min-h-11 items-center gap-3 border-l-2 border-transparent px-5 text-muted hover:bg-primary/6 aria-[current]:border-accent aria-[current]:bg-primary/6 aria-[current]:font-medium aria-[current]:text-primary last:mt-auto last:mb-4 lg:px-4"
+    <div className="flex min-h-dvh flex-col">
+      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900 text-white shadow-lg">
+        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <Link href="/" aria-label={t.app.name}>
+            <Brand />
+          </Link>
+          <nav
+            aria-label={t.nav.label}
+            className="hidden items-center gap-1 rounded-xl border border-slate-700/70 bg-slate-800/80 p-1 md:flex [&_svg]:size-5"
           >
-            <NavIcon item={i} />
-            <span className="max-lg:sr-only">{i.label}</span>
-          </Link>
-        ))}
-      </nav>
-
-      <header className="sticky top-0 z-10 flex h-12 items-center justify-between border-b border-border bg-surface px-4 md:hidden">
-        <p className="font-semibold text-primary">{t.app.name}</p>
-        {bell && (
-          <Link href={bell.href} aria-label={bell.label} className="flex size-11 items-center justify-center">
-            <NavIcon item={bell} />
-          </Link>
-        )}
+            {items.map((i) => (
+              <Link
+                key={i.href}
+                href={i.href}
+                aria-current={current(i.href)}
+                title={i.label}
+                className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-300 hover:bg-slate-700/50 hover:text-white aria-[current]:bg-emerald-700 aria-[current]:text-white aria-[current]:shadow-sm"
+              >
+                <NavIcon item={i} />
+                <span className="max-xl:sr-only">{i.label}</span>
+              </Link>
+            ))}
+          </nav>
+          {bell && (
+            <Link href={bell.href} aria-label={bell.label} className="flex size-11 items-center justify-center md:hidden">
+              <NavIcon item={bell} />
+            </Link>
+          )}
+        </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-4 py-6 max-md:pb-24 md:px-6">{children}</main>
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 max-md:pb-24 sm:px-6 lg:px-8">{children}</main>
 
       <nav
         aria-label={t.nav.label}
-        className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-800 bg-slate-900 pb-[env(safe-area-inset-bottom)] md:hidden"
       >
         {items
           .filter((i) => i.tab)
@@ -217,7 +316,7 @@ function Layout({ children }: { children: ReactNode }) {
               key={i.href}
               href={i.href}
               aria-current={current(i.href)}
-              className="flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] text-muted aria-[current]:font-medium aria-[current]:text-primary"
+              className="flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-medium text-slate-400 aria-[current]:font-semibold aria-[current]:text-emerald-400"
             >
               <NavIcon item={i} />
               {i.label}

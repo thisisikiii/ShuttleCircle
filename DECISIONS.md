@@ -80,11 +80,13 @@ This document records the selected answers and supplied text. `Answered` means a
 
 ## DEC-011 — Notification channels in the first release
 
-**Status:** Proposed default
+**Status:** Decided by the owner on 2026-11-17 (WhatsApp added)
 
-**Default:** In-app and email. WhatsApp is deferred.
+**Decision:** In-app, email, and WhatsApp through a linked account. Email goes through any SMTP relay (Brevo on the test box, port 2525). WhatsApp goes through a WAHA gateway container (engine NOWEB, which is Baileys): the superadmin links the club number once by QR code in Admin > WhatsApp, like WhatsApp Web. Members who gave a WhatsApp number get a WhatsApp copy of each notification. Hosts and admins can send invitations by email or WhatsApp.
 
-**Why:** FR-11 says "email or WhatsApp". The official WhatsApp Business API needs Meta business verification, pre-approved templates and per-message fees; unofficial gateways risk number bans. Add it when a provider is chosen. Guests have no contact channel and see their status on the site only.
+**Why:** The owner asked for WhatsApp from the superadmin number without the Meta Business process. The official WhatsApp Business API needs Meta business verification, pre-approved templates and per-message fees.
+
+**Risk accepted:** The gateway is unofficial and breaks WhatsApp's terms. WhatsApp can ban the linked number, mostly when it messages people who have not saved it. The build limits the pace (5 notification messages per 30 seconds, 1 second between invitations, 20 contacts per invitation call) but cannot remove the risk. A spare number is safer than a personal one. Guests have no contact channel and see their status on the site only.
 
 ## DEC-012 — Meaning of "attended" and "games per player"
 

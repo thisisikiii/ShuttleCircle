@@ -31,7 +31,7 @@ export function Countdown({ expiresAt, onExpire }: { expiresAt: string; onExpire
   return (
     <>
       <span
-        className={`font-mono text-xl font-medium text-accent tabular-nums ${left > 0 && left <= 60 ? "motion-safe:animate-pulse" : ""}`}
+        className={`mono text-xl font-extrabold text-accent ${left > 0 && left <= 60 ? "motion-safe:animate-pulse" : ""}`}
       >
         {left > 0 ? `${mm}:${ss}` : t.countdown.expired}
       </span>

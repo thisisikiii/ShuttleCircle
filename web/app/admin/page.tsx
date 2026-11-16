@@ -2,16 +2,17 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
+import { InviteForm } from "@/components/invite";
 import { Ledger } from "@/components/ledger";
 import { Guard } from "@/components/shell";
-import { Button, Checkbox, Chip, DataTable, Empty, ErrorAlert, Input, Load, LoadMore, PageHeader, Select, Strip } from "@/components/ui";
+import { Alert, Button, Checkbox, Chip, DataTable, Empty, ErrorAlert, Input, Load, LoadMore, PageHeader, Select, Strip } from "@/components/ui";
 import { api, fieldErrors, useAct, usePaged } from "@/lib/api";
 import { monthStart, rupiah, today } from "@/lib/format";
 import { atLeast } from "@/lib/session";
 import { t } from "@/lib/strings";
 import type { Expense, ExpenseCategory, FinanceSummary, Member, Role, Settings, User } from "@/lib/types";
 
-const TABS = ["finance", "members", "settings"] as const;
+const TABS = ["finance", "members", "invite", "whatsapp", "settings"] as const;
 
 const submit = (run: () => void) => (e: FormEvent) => {
   e.preventDefault();
@@ -28,14 +29,14 @@ function Admin({ me }: { me: Member }) {
   return (
     <>
       <PageHeader title={t.admin.title} />
-      <div role="tablist" aria-label={t.admin.title} className="mb-6 flex gap-1 border-b border-border">
-        {TABS.map((k) => (
+      <div role="tablist" aria-label={t.admin.title} className="mb-6 flex gap-1 overflow-x-auto border-b border-border">
+        {TABS.filter((k) => k !== "whatsapp" || isSuper).map((k) => (
           <button
             key={k}
             role="tab"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className="-mb-px min-h-11 cursor-pointer border-b-2 border-transparent px-3 text-muted aria-selected:border-fg aria-selected:font-medium aria-selected:text-fg"
+            className="-mb-px min-h-11 shrink-0 cursor-pointer border-b-2 border-transparent px-3 text-sm font-semibold text-muted aria-selected:border-accent aria-selected:font-bold aria-selected:text-accent"
           >
             {t.admin[k]}
           </button>
@@ -44,6 +45,8 @@ function Admin({ me }: { me: Member }) {
       <div role="tabpanel">
         {tab === "finance" && <Finance isSuper={isSuper} />}
         {tab === "members" && <Members isSuper={isSuper} selfId={me.id} />}
+        {tab === "invite" && <InviteForm />}
+        {tab === "whatsapp" && <WhatsApp />}
         {tab === "settings" && <SettingsForm isSuper={isSuper} />}
       </div>
     </>
@@ -276,6 +279,55 @@ function MemberPanel({ user, isSuper, isSelf }: { user: User; isSuper: boolean; 
       <h3 className="mb-2">{t.wallet.ledger}</h3>
       <Ledger path={`/wallets/${user.id}/transactions`} />
     </section>
+  );
+}
+
+type WhatsAppState = { enabled: boolean; status?: string; number?: string | null; name?: string | null; qr?: string | null };
+
+/** Links the admin WhatsApp number to the gateway by QR code, like WhatsApp Web. */
+function WhatsApp() {
+  const q = useQuery({
+    queryKey: ["whatsapp"],
+    queryFn: () => api.get<WhatsAppState>("/whatsapp").then((r) => r.data),
+    // the QR code changes every 20 to 60 seconds while waiting for the scan
+    refetchInterval: (query) => (query.state.data?.enabled && query.state.data.status !== "WORKING" ? 5_000 : 30_000),
+  });
+  const unlink = useAct(() => api.post("/whatsapp/logout"));
+  return (
+    <Load q={q}>
+      {(s) =>
+        !s.enabled ? (
+          <Empty>{t.whatsapp.off}</Empty>
+        ) : (
+          <div className="max-w-[640px] space-y-4">
+            <p className="text-muted">{t.whatsapp.intro}</p>
+            <Alert tone="info">{t.whatsapp.risk}</Alert>
+            {s.status === "WORKING" ? (
+              <div className="card flex flex-wrap items-center justify-between gap-3 p-4">
+                <p className="font-bold text-success">
+                  {t.whatsapp.connected(`+${s.number}`)}
+                  {s.name && <span className="caption block text-muted">{s.name}</span>}
+                </p>
+                <Button disabled={unlink.isPending} onClick={() => unlink.mutate()}>
+                  {t.whatsapp.unlink}
+                </Button>
+              </div>
+            ) : s.qr ? (
+              <div className="card p-4">
+                <p className="mb-3">{t.whatsapp.scan}</p>
+                {/* a white frame: the code must stay scannable whatever the theme */}
+                <img src={s.qr} alt={t.whatsapp.qrAlt} className="mx-auto size-64 rounded-xl bg-white p-2" />
+              </div>
+            ) : (
+              <p role="status" className="text-muted">
+                {t.whatsapp.starting}
+              </p>
+            )}
+            {unlink.isError && <ErrorAlert error={unlink.error} />}
+          </div>
+        )
+      }
+    </Load>
   );
 }
 

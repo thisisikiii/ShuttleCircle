@@ -19,7 +19,7 @@ export type Member = {
 };
 export type Me = Member | { kind: "guest"; nickname: string };
 
-export type Health = { status: string; features: { gateway: boolean; google: boolean; email: boolean } };
+export type Health = { status: string; features: { gateway: boolean; google: boolean; email: boolean; whatsapp: boolean } };
 
 export type Match = {
   id: string;

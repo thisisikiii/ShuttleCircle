@@ -234,6 +234,7 @@ CREATE TABLE notifications (
   email_sent_at  timestamptz,
   email_attempts int NOT NULL DEFAULT 0,
   email_next_at  timestamptz DEFAULT now(),   -- null = do not email
+  wa_sent_at     timestamptz,                 -- WhatsApp copy tried (migration 0002); null = not yet
   created_at     timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX notifications_user_idx   ON notifications(user_id, created_at DESC);

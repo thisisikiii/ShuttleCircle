@@ -28,43 +28,46 @@ The system adapts a **dashboard-first** grammar: persistent left rail (role-scop
 
 ## 4. Semantic Color System
 
-Palette from the owner's design reference `design-systems-56/17-pulsering`, chosen by the owner: a dark, kinetic system with one halogen green. It replaced the earlier Limeledger choice.
+Court palette, from the HTML styling reference the owner supplied on 2026-11-17: emerald and lime on slate, light pages with dark chrome. It replaced the Pulsering choice.
 
 ```css
 :root {
-  --color-bg: #0A0C0B;        /* page, near-black */
-  --color-surface: #111513;   /* panels, tables, inputs */
-  --color-fg: #EAF2EC;        /* primary text */
-  --color-muted: #8A9890;     /* secondary text, captions */
-  --color-border: #26302B;    /* hairlines, ring outlines */
-  --color-accent: #7CFF4F;    /* the only bright colour: primary action, focus, countdown, active nav, links */
-  --color-on-accent: #07110A; /* text on a green fill */
-  --color-success: #7CFF4F;   /* confirmed */
-  --color-warning: #F5B841;   /* pending, hold running */
-  --color-danger: #FF5A5F;    /* expired, cancelled, rejected */
+  --color-bg: #F8FAFC;        /* page, slate-50 */
+  --color-surface: #FFFFFF;   /* cards, tables, inputs */
+  --color-fg: #1E293B;        /* body text */
+  --color-primary: #0F172A;   /* headings, dark chrome */
+  --color-muted: #64748B;     /* secondary text */
+  --color-label: #475569;     /* uppercase field labels */
+  --color-border: #E2E8F0;    /* card borders, hairlines */
+  --color-control: #CBD5E1;   /* input and outline-button borders */
+  --color-accent: #047857;    /* primary action, links, focus, countdown */
+  --color-on-accent: #FFFFFF;
+  --color-lime: #A3E635;      /* highlight on dark chrome only */
+  --color-success: #065F46;   /* confirmed */
+  --color-warning: #92400E;   /* pending, hold running */
+  --color-danger: #BE123C;    /* expired, cancelled, rejected */
 }
 ```
 
-**Usage rules:** Backgrounds stay near-black. Halogen green is the single signal colour; text on a green fill is near-black. The glow (`0 0 32px -4px rgba(124,255,79,.35)`) belongs to the one primary action per viewport only. Semantic colors appear as status chips with text labels. Chips map one-to-one to the request states in FEATURES.md §2: `pending` (warning), `awaiting_payment` (warning, with countdown), `confirmed` (success), `rejected`, `expired`, `cancelled` (danger). Chip text is the Bahasa Indonesia label for the state (DEC-019). Amber `#F5B841` was added for warning because Pulsering defines none. Pulsering's cyan secondary accent is not used. All text pairs measure above 6:1 on both background and surface. Native controls follow the theme through `color-scheme: dark`.
+**Usage rules:** Pages are light; the top bar, the phone tab bar, the calendar hero and the sign-in gateway are dark (slate-900, or deep green with faint court lines). Lime appears only on those dark areas. The reference fills buttons with emerald-600; this build uses emerald-700 (`#047857`) because white text on emerald-600 measures 3.8:1, below WCAG AA, and emerald-700 measures 5.5:1. Semantic colors appear as tinted status chips with text labels. Chips map one-to-one to the request states in FEATURES.md §2: `pending` (warning), `awaiting_payment` (warning, with countdown), `confirmed` (success), `rejected`, `expired`, `cancelled` (danger). Chip text is the Bahasa Indonesia label for the state (DEC-019). Dark areas re-tint the same components by overriding the tokens under the `.on-dark` class, so no component has a second set of styles.
 
 ## 5. Typography & Type Scale
 
-- **Display (h1, h2):** `Outfit` 600.
-- **Body / UI:** `Inter`.
-- **Numeric/Data:** `JetBrains Mono`, tabular numerals: wallet amounts, timers, seat counts.
-
-All three load through `next/font/google`, which self-hosts the files at build time: no request to Google at runtime and no layout shift.
+- **All text:** `Inter`, loaded through `next/font/google`, which self-hosts the files at build time: no request to Google at runtime and no layout shift.
+- **Numeric/Data:** Inter with tabular numerals at weight 600: wallet amounts, timers, seat counts.
 
 | Level | Size | Weight | Line-Height | Tracking | Rationale |
 |:---|:---|:---|:---|:---|:---|
-| h1 | clamp(1.5rem, 6vw, 2rem) | 600 | 1.15 | -0.03em | Page titles |
-| h2 | 1.5rem | 600 | 1.25 | -0.01em | Section heads |
-| h3 | 1.125rem | 600 | 1.3 | 0 | Panel titles |
+| h1 | clamp(1.5rem, 5vw, 1.875rem) | 800 | 1.2 | -0.025em | Page titles |
+| h2 | 1.25rem | 800 | 1.3 | -0.025em | Section heads |
+| h3 | 1rem | 800 | 1.35 | -0.025em | Panel titles |
 | body | 0.9375rem | 400 | 1.5 | 0 | Default (16px in inputs on phones) |
-| caption | 0.8125rem | 500 | 1.4 | 0.01em | Labels, status |
-| mono | 0.875rem | 500 | 1.4 | 0 | Amounts, timers |
+| caption | 0.8125rem | 500 | 1.4 | 0 | Hints, secondary lines |
+| label | 0.6875rem | 700 | 1.4 | 0.08em, uppercase | Field labels, table heads, tile labels |
 
-**Shape and motion:** buttons and inputs are 16px rounded rectangles with a 1.5px border; a button morphs to a pill on hover (200 ms), which is Pulsering's signature. Chips are pills. Not adopted from Pulsering: uppercase labels (captions here are often full sentences), concentric double rings, bento tiles and the centre dock action, because section 8 (card discipline) and the dense admin tables come first. Motion respects `prefers-reduced-motion`.
+**Shape and motion:** buttons and inputs are 12px rounded rectangles; cards are 16px with a 1px border and a soft shadow; dialogs and gateway panels are 24px; chips are pills. The only decorative motion is the dashed shuttle trajectory on the sign-in gateway. Motion respects `prefers-reduced-motion`.
+
+Not taken from the reference: its Court Arranger, skill ratings, win leaderboard, demo quick-login passes and player switcher. They are features outside PRD.md, not styling.
 
 ## 6. Layout Strategy & Anti-Repetition Rules
 
@@ -92,10 +95,13 @@ Cards are **allowed only** for: calendar day cells, request list rows (as border
 
 ## 9. Component Rules & Action Hierarchy
 
-- **Primary:** green fill with near-black label and a glow, one per viewport (e.g., *Approve & Charge*, *Pay Now*).
-- **Secondary:** 1.5px ring outline in `--color-border`; the ring turns green on hover.
-- **Tertiary:** text-only green.
-- **States:** hover = 6% darken; focus = 2px green ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = light 4% tint; active nav item = light 6% tint + 2px green bar. All contrast meets WCAG AA.
+- **Primary:** emerald fill with a white bold label and a soft emerald shadow, one per viewport (e.g., *Approve & Charge*, *Pay Now*). On dark areas the fill is lime with a near-black label.
+- **Secondary:** white with a 1px slate outline; the outline turns emerald on hover.
+- **Tertiary:** text-only emerald.
+- **States:** hover = slight brighten; focus = 2px emerald ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = 4% tint; active nav item = emerald pill (top bar) or emerald label (phone tab bar). All contrast meets WCAG AA.
+- **Navigation:** a sticky dark top bar with the logo and, from 768 px, a pill group of nav items (icons only below 1280 px, with labels above). Phones keep the bottom tab bar.
+- **Sign-in gateway:** login, register and the guest nickname form share one full-screen dark page: court-line backdrop, the form in a glass card with a three-way mode switch, and a club guide (FAQ) built from the rules in FEATURES.md.
+- **Calendar hero:** a deep-green banner with the greeting, the create action for hosts, and two counts (open sessions, scheduled).
 
 ## 10. Behavioral Responsive Design
 

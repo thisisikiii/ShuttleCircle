@@ -20,6 +20,8 @@ pub struct Config {
     pub midtrans_snap_url: String,
     pub google: Option<(String, String)>,
     pub smtp: Option<Smtp>,
+    /// WAHA gateway base URL and API key.
+    pub waha: Option<(String, String)>,
 }
 
 fn opt(k: &str) -> Option<String> {
@@ -52,6 +54,7 @@ impl Config {
                 password: opt("SMTP_PASSWORD"),
                 from: must("MAIL_FROM"),
             }),
+            waha: opt("WAHA_URL").zip(opt("WAHA_API_KEY")),
         }
     }
 }

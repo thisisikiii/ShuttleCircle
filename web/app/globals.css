@@ -1,60 +1,58 @@
 @import "tailwindcss";
 
-/* DESIGN.md §4: Pulsering palette (near-black + one halogen green) */
+/* DESIGN.md §4: court palette (emerald and lime on slate). Light pages, dark chrome. */
 @theme {
-  --color-primary: #eaf2ec; /* brand text, tints */
-  --color-secondary: #7cff4f; /* links */
-  --color-accent: #7cff4f; /* the only bright colour: primary action, focus, countdown, active nav */
-  --color-on-accent: #07110a; /* text on a green fill */
-  --color-success: #7cff4f;
-  --color-warning: #f5b841;
-  --color-danger: #ff5a5f;
-  --color-bg: #0a0c0b;
-  --color-surface: #111513;
-  --color-fg: #eaf2ec;
-  --color-muted: #8a9890;
-  --color-border: #26302b;
+  --color-primary: #0f172a; /* brand text, tints */
+  --color-secondary: #047857; /* links */
+  --color-accent: #047857; /* primary action, focus, countdown: emerald dark enough for white text */
+  --color-on-accent: #ffffff;
+  --color-lime: #a3e635; /* highlight on dark chrome only */
+  --color-success: #065f46;
+  --color-warning: #92400e;
+  --color-danger: #be123c;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-fg: #1e293b;
+  --color-muted: #64748b;
+  --color-label: #475569; /* uppercase field labels */
+  --color-border: #e2e8f0;
+  --color-control: #cbd5e1; /* input and outline-button borders */
   --radius-sm: 8px;
 }
 
 @theme inline {
   --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-display: var(--font-outfit), system-ui, sans-serif;
-  --font-mono: var(--font-jetbrains), ui-monospace, monospace;
+  --font-mono: var(--font-inter), system-ui, sans-serif;
 }
 
 /* DESIGN.md §5 */
 @layer base {
-  html {
-    color-scheme: dark; /* native date pickers, selects and scrollbars follow the theme */
-  }
   body {
     background: var(--color-bg);
     color: var(--color-fg);
     font-size: 0.9375rem;
     line-height: 1.5;
     overflow-wrap: anywhere;
+    -webkit-font-smoothing: antialiased;
   }
   h1,
-  h2 {
-    font-family: var(--font-outfit), system-ui, sans-serif;
+  h2,
+  h3 {
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: var(--color-primary);
   }
   h1 {
-    font-size: clamp(1.5rem, 6vw, 2rem);
-    font-weight: 600;
-    line-height: 1.15;
-    letter-spacing: -0.03em;
+    font-size: clamp(1.5rem, 5vw, 1.875rem);
+    line-height: 1.2;
   }
   h2 {
-    font-size: 1.5rem;
-    font-weight: 600;
-    line-height: 1.25;
-    letter-spacing: -0.01em;
+    font-size: 1.25rem;
+    line-height: 1.3;
   }
   h3 {
-    font-size: 1.125rem;
-    font-weight: 600;
-    line-height: 1.3;
+    font-size: 1rem;
+    line-height: 1.35;
   }
   :focus-visible {
     outline: 2px solid var(--color-accent);
@@ -70,23 +68,75 @@
   }
 }
 
+/* Sign-in gateway and other dark panels: the same components, re-tinted through the tokens. */
+.on-dark {
+  color-scheme: dark;
+  --color-primary: #ffffff;
+  --color-secondary: #a3e635;
+  --color-accent: #a3e635;
+  --color-on-accent: #020617;
+  --color-success: #a3e635;
+  --color-warning: #fcd34d;
+  --color-danger: #fda4af;
+  --color-surface: #020617;
+  --color-fg: #ffffff;
+  --color-muted: #cbd5e1;
+  --color-label: #cbd5e1;
+  --color-border: rgb(255 255 255 / 0.12);
+  --color-control: rgb(255 255 255 / 0.2);
+  color: var(--color-fg);
+}
+
+/* Faint court lines on deep green (hero banner). */
+.court-pattern {
+  background-color: #064e3b;
+  background-image:
+    linear-gradient(to right, rgb(255 255 255 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(255 255 255 / 0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+.trajectory {
+  stroke-dasharray: 8 8;
+  animation: dash-flow 2.2s linear infinite;
+}
+
 @utility caption {
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.4;
-  letter-spacing: 0.01em;
 }
 
+/* Figures: tabular so columns of money and times line up. */
 @utility mono {
-  font-family: var(--font-jetbrains), ui-monospace, monospace;
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.4;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+@utility label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-label);
+}
+
+@utility card {
+  border: 1px solid var(--color-border);
+  border-radius: 1rem;
+  background: var(--color-surface);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
 }
 
 @utility link {
   color: var(--color-secondary);
+  font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
 }

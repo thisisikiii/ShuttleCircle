@@ -212,4 +212,7 @@ Media are fetched with the bearer header and shown through object URLs, so files
 |:---|:---|:---|
 | `GET /notifications` | Member | Newest first, paginated |
 | `POST /notifications/read` | Member | Body `{ids: []}` or `{all: true}` |
+| `POST /invitations` | Host+ | Body `{match_id?, contacts: []}`, 1 to 20 contacts. A contact with `@` is emailed, any other is sent by WhatsApp. With `match_id` (caller must manage the match) the message links to the match; without it (Admin+) it links to registration. Nothing is stored. Returns `[{contact, sent, error}]`. Rate limited |
+| `GET /whatsapp` | Superadmin | Link state of the WhatsApp gateway: `{enabled, status, number, name, qr}`. `qr` is a PNG data URL while `status` is `SCAN_QR_CODE`; `WORKING` means linked. Starts the session when needed |
+| `POST /whatsapp/logout` | Superadmin | Unlinks the WhatsApp account. `204` |
 | `GET /healthz` | Anyone | `200 {"status":"ok","features":{"gateway":bool,"google":bool,"email":bool}}` when the database answers; `features` tells the web app which optional integrations are configured |

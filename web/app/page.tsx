@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
-import { Button, Chip, Empty, Load, PageHeader, Skeleton, buttonClass } from "@/components/ui";
+import { Button, Chip, Empty, Load, Skeleton, buttonClass } from "@/components/ui";
 import { api } from "@/lib/api";
 import { fmtDate, fmtMonth, fmtTime, groupBy, jakartaDay, monthStart, rupiah, today } from "@/lib/format";
 import { atLeast, useMe } from "@/lib/session";
@@ -35,7 +35,26 @@ export default function CalendarPage() {
 
   return (
     <>
-      <PageHeader title={t.calendar.title}>{create}</PageHeader>
+      <section className="court-pattern on-dark mb-6 flex flex-col gap-4 rounded-2xl border border-emerald-900 p-5 sm:p-6 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1>
+            {t.calendar.hero} <span className="text-lime">{me.kind === "member" ? me.full_name : me.nickname}</span>?
+          </h1>
+          <p className="mt-1 max-w-2xl text-sm text-emerald-100/80">{t.calendar.heroIntro}</p>
+          {create && <div className="mt-4">{create}</div>}
+        </div>
+        <dl className="grid shrink-0 grid-cols-2 gap-2.5">
+          {[
+            { label: t.calendar.openSessions, value: q.data?.filter((m) => m.status === "scheduled" && m.seats_taken < m.capacity).length },
+            { label: t.calendar.scheduled, value: q.data?.filter((m) => m.status === "scheduled").length },
+          ].map((s) => (
+            <div key={s.label} className="flex min-w-24 flex-col-reverse rounded-2xl border border-white/15 bg-white/10 p-3 text-center">
+              <dt className="text-[0.6875rem] font-medium text-emerald-100">{s.label}</dt>
+              <dd className="text-2xl font-extrabold text-lime">{s.value ?? "–"}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
       <div className="mb-4 flex items-center justify-between gap-2">
         <Button variant="tertiary" className="shrink-0" aria-label={t.calendar.prev} disabled={offset <= -1} onClick={() => setOffset(offset - 1)}>
           ‹ <span className="max-md:hidden">{t.calendar.prev}</span>
@@ -65,10 +84,10 @@ export default function CalendarPage() {
           return (
             <>
               {/* ≥768 px: month grid */}
-              <div className="border-t border-l border-border bg-surface max-md:hidden">
+              <div className="card overflow-hidden border-r-0 border-b-0 max-md:hidden">
                 <div className="grid grid-cols-7">
                   {t.calendar.weekdays.map((d) => (
-                    <div key={d} className={`caption px-2 py-1 text-muted ${cell}`}>
+                    <div key={d} className={`label bg-bg px-2 py-2 ${cell}`}>
                       {d}
                     </div>
                   ))}
@@ -77,14 +96,16 @@ export default function CalendarPage() {
                   ))}
                   {days.map((d) => (
                     <div key={d} className={`min-h-28 min-w-0 p-1 ${cell}`}>
-                      <p className={`mono px-1 ${d === today() ? "font-bold text-primary underline" : "text-muted"}`}>
+                      <p
+                        className={`mono flex size-6 items-center justify-center rounded-full text-xs ${d === today() ? "bg-accent text-on-accent" : "text-muted"}`}
+                      >
                         {Number(d.slice(8))}
                       </p>
                       {byDay.get(d)?.map((m) => (
                         <Link
                           key={m.id}
                           href={`/matches/${m.id}`}
-                          className="mt-1 block border-l-2 border-primary px-1.5 py-1 hover:bg-primary/6"
+                          className="mt-1 block rounded-lg border border-emerald-200 bg-emerald-50 px-1.5 py-1 hover:bg-emerald-100"
                         >
                           <span className="block truncate font-medium">
                             <span className="mono">{fmtTime(m.starts_at)}</span> {m.title}
@@ -106,13 +127,13 @@ export default function CalendarPage() {
               {/* <768 px: agenda list */}
               <div className="md:hidden">
                 {busyDays.map((d) => (
-                  <section key={d} className="border-t border-border py-3">
-                    <h3 className="caption mb-1 text-muted">{fmtDate(d)}</h3>
+                  <section key={d} className="mb-4">
+                    <h3 className="label mb-2">{fmtDate(d)}</h3>
                     {byDay.get(d)?.map((m) => (
                       <Link
                         key={m.id}
                         href={`/matches/${m.id}`}
-                        className="flex min-h-11 items-center justify-between gap-3 py-2"
+                        className="card mb-2 flex min-h-11 items-center justify-between gap-3 p-3.5"
                       >
                         <span className="min-w-0">
                           <span className="block font-medium">

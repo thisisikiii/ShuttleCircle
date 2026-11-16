@@ -4,10 +4,12 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { InviteForm } from "@/components/invite";
 import {
   Button,
   Chip,
   ConfirmDialog,
+  Dialog,
   ErrorAlert,
   Input,
   Load,
@@ -41,7 +43,7 @@ export default function MatchPage() {
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
     <>
-      <dt className="caption pt-0.5 text-muted">{label}</dt>
+      <dt className="label pt-1">{label}</dt>
       <dd>{children}</dd>
     </>
   );
@@ -50,6 +52,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 function Detail({ m }: { m: MatchDetail }) {
   const me = useMe();
   const [cancelling, setCancelling] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const cancel = useAct(
     () => api.post(`/matches/${m.id}/cancel`),
     () => setCancelling(false),
@@ -62,9 +65,12 @@ function Detail({ m }: { m: MatchDetail }) {
       <PageHeader title={m.title}>
         <Chip status={m.status} />
         {m.can_manage && scheduled && (
-          <Link href={`/matches/${m.id}/edit`} className={buttonClass()}>
-            {t.match.edit}
-          </Link>
+          <>
+            <Button onClick={() => setInviting(true)}>{t.invite.button}</Button>
+            <Link href={`/matches/${m.id}/edit`} className={buttonClass()}>
+              {t.match.edit}
+            </Link>
+          </>
         )}
         {atLeast(me, "superadmin") && (scheduled || m.status === "ongoing") && (
           <Button onClick={() => setCancelling(true)}>{t.match.cancel}</Button>
@@ -72,7 +78,7 @@ function Detail({ m }: { m: MatchDetail }) {
       </PageHeader>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <dl className="grid grid-cols-[7.5rem_minmax(0,1fr)] content-start gap-x-4 gap-y-2">
+        <dl className="card grid grid-cols-[7.5rem_minmax(0,1fr)] content-start gap-x-4 gap-y-2 p-5">
           <Row label={t.match.time}>
             {fmtDate(m.starts_at)} · <span className="mono">{fmtTime(m.starts_at)}</span> {t.common.wib}
           </Row>
@@ -106,7 +112,7 @@ function Detail({ m }: { m: MatchDetail }) {
           )}
         </dl>
 
-        <aside className="max-lg:border-t max-lg:border-border max-lg:pt-6 lg:row-span-2 lg:border-l lg:border-border lg:pl-6">
+        <aside className="card self-start p-5 lg:row-span-2">
           <JoinBox m={m} />
         </aside>
 
@@ -116,6 +122,15 @@ function Detail({ m }: { m: MatchDetail }) {
           <MediaSection m={m} />
         </div>
       </div>
+
+      <Dialog open={inviting} onClose={() => setInviting(false)} title={t.invite.matchTitle}>
+        <InviteForm matchId={m.id} />
+        <div className="mt-4 flex justify-end">
+          <Button variant="tertiary" onClick={() => setInviting(false)}>
+            {t.invite.close}
+          </Button>
+        </div>
+      </Dialog>
 
       <ConfirmDialog
         open={cancelling}
@@ -209,7 +224,7 @@ function Roster({ m, editable }: { m: MatchDetail; editable: boolean }) {
                     min={0}
                     inputMode="numeric"
                     aria-label={t.match.gamesOf(r.name)}
-                    className={`${controlClass} w-20! shrink-0 font-mono`}
+                    className={`${controlClass} w-20! shrink-0 font-semibold tabular-nums`}
                     value={games[r.join_request_id] ?? r.games_played ?? ""}
                     onChange={(e) => setGames({ ...games, [r.join_request_id]: e.target.value })}
                   />

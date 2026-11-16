@@ -1,4 +1,9 @@
-use crate::{auth::Member, config::Smtp, error::*, AppState};
+use crate::{
+    auth::{Member, Role},
+    config::Smtp,
+    error::*,
+    requests, whatsapp, AppState,
+};
 use axum::{
     extract::{Query, State},
     http::StatusCode,
@@ -6,7 +11,7 @@ use axum::{
 };
 use lettre::{transport::smtp::authentication::Credentials, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use sqlx::PgConnection;
 use uuid::Uuid;
 
@@ -74,4 +79,78 @@ pub async fn read(State(st): State<AppState>, m: Member, Json(b): Json<ReadIn>) 
         .execute(&st.db)
         .await?;
     Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+pub struct InviteIn {
+    match_id: Option<Uuid>,
+    contacts: Vec<String>,
+}
+
+/// Invites people by email (the contact has an @) or WhatsApp (a phone number): to one match
+/// when `match_id` is given, else to create an account. Nothing is stored; the reply lists
+/// which contacts were reached.
+pub async fn invite(State(st): State<AppState>, m: Member, Json(b): Json<InviteIn>) -> R<Json<Value>> {
+    m.need(Role::Host)?;
+    let contacts: Vec<&str> = b.contacts.iter().map(|c| c.trim()).filter(|c| !c.is_empty()).collect();
+    if contacts.is_empty() || contacts.len() > 20 {
+        return Err(invalid("contacts", "Isi 1 sampai 20 email atau nomor WhatsApp"));
+    }
+    let mut c = st.db.acquire().await?;
+    let inviter: String = sqlx::query_scalar("SELECT full_name FROM users WHERE id = $1").bind(m.id).fetch_one(&mut *c).await?;
+    let url = &st.cfg.public_url;
+    let (subject, text) = match b.match_id {
+        Some(id) => {
+            requests::can_manage(&mut *c, id, &m).await?;
+            let (title, when, place): (String, String, String) =
+                sqlx::query_as("SELECT title, to_char(starts_at AT TIME ZONE 'Asia/Jakarta', 'DD/MM/YYYY HH24:MI'), location_name FROM matches WHERE id = $1")
+                    .bind(id)
+                    .fetch_one(&mut *c)
+                    .await?;
+            (
+                format!("Undangan main: {title}"),
+                format!("{inviter} mengundang kamu main badminton di ShuttleCircle.
+
+{title}
+{when} WIB
+{place}
+
+Lihat dan minta gabung: {url}/matches/{id}"),
+            )
+        }
+        None => {
+            m.need(Role::Admin)?;
+            (
+                "Undangan bergabung di ShuttleCircle".to_string(),
+                format!("{inviter} mengundang kamu bergabung di komunitas badminton ShuttleCircle.
+
+Buat akun: {url}/register"),
+            )
+        }
+    };
+    drop(c);
+    let mut results = Vec::new();
+    let mut whatsapp_sent = false;
+    for contact in contacts {
+        let res = if contact.contains('@') {
+            match &st.cfg.smtp {
+                Some(smtp) => send_mail(smtp, contact, &subject, &text).await.map_err(|e| {
+                    tracing::warn!(error = %e, "invitation email failed");
+                    "Email gagal dikirim".to_string()
+                }),
+                None => Err("Email belum diatur".into()),
+            }
+        } else {
+            // A pause between messages: bursts are what gets a linked number banned.
+            if whatsapp_sent {
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            }
+            whatsapp_sent = true;
+            whatsapp::send(&st, contact, &format!("*{subject}*
+
+{text}")).await
+        };
+        results.push(json!({"contact": contact, "sent": res.is_ok(), "error": res.err()}));
+    }
+    Ok(ok(results))
 }
