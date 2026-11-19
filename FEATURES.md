@@ -14,6 +14,7 @@
 | F8 Reward Engine | Member | DEC-015 | DATABASE.md `rewards` |
 | F9 Notifications | Members | DEC-011 | ARCHITECTURE.md §4 |
 | F10 Finance Dashboard & Admin | Admin, Superadmin | — | API.md §3.7 |
+| F11 Court Rotation (latest) | Host, Admin; Members read-only | DEC-021 | API.md §3.9 |
 
 Field names in this file match `DATABASE.md` and `API.md`.
 
@@ -238,6 +239,47 @@ stateDiagram-v2
 | AC-F10-04 | Admins search members and view any member's wallet and ledger. |
 | AC-F10-05 | Settings: reward on/off (admin), membership price and minimum top-up (superadmin). |
 
-## 13. Out of Scope (Feature Level)
+## 13. F11 — Court Rotation (latest feature)
+
+Added 2026-11-19 (FR-19, DEC-021). The rules follow the behaviour of a common court-queue tool for social badminton: fewest games first, longest wait next, and newcomers do not jump the queue.
+
+### Flow
+1. The host arranges a match as usual. Every confirmed player (FR-11) appears on the match's rotation board as "not arrived". No extra setup is needed.
+2. At the venue the host marks players as arrived, one by one or all at once. The board starts with 2 courts in doubles; the host can change both.
+3. For each court the host taps **Pilihkan pemain**. The system picks the next players by the rules below, splits them into two teams, and shows them as that court's next turn. The host can pick again, choose players by hand, or clear the turn.
+4. **Mulai** starts the game and its timer. Meanwhile the host can already prepare the court's following turn.
+5. **Selesai** ends the game, with an optional score. Every player in it gets one more game and starts waiting again. Their `games_played` on the roster is updated (FR-12).
+6. Players can rest, return or leave at any time, except while on court.
+
+### User Stories
+- As a host, I want the system to pick who plays next, so that everyone gets about the same number of games and nobody waits too long.
+- As a host, I want mixed-doubles or men-only courts and level-balanced games, so that the games match the session.
+- As a member, I want to see the board on my phone, so that I know when it is my turn.
+
+### Acceptance Criteria
+| ID | Criterion |
+|:---|:---|
+| AC-F11-01 | The board lists exactly the match's confirmed players. Only the match host, admins and superadmins change it; any signed-in member can view it. A cancelled match has no board. |
+| AC-F11-02 | Queue order: fewest counted games, then longest waiting since the last game end, arrival or return from rest, then earliest arrival. Counted games = max(games played, the fewest games among the other players present when this player arrived or returned). |
+| AC-F11-03 | Picking takes the first 4 (doubles) or 2 (singles) eligible players in queue order who are waiting and not already in another court's turn. Fewer eligible players → `409 NOT_ENOUGH_PLAYERS` with the number missing. |
+| AC-F11-04 | Teams: queue positions 1 and 4 against 2 and 3. Singles: 1 against 2. |
+| AC-F11-05 | Gender mode per court: any (everyone, including players with no gender set); mixed (doubles only, 2 men and 2 women, one of each per team); men; women. |
+| AC-F11-06 | Level mode per court: off; balanced (similar levels); mixed (spread levels). Level only chooses among players with the same counted games as the last player needed, so a player who played more never goes ahead. An unset level counts as beginner. When level is on, teams are strongest + weakest against the middle two. |
+| AC-F11-07 | A court has at most one next turn and one running game. A next turn cannot start while the court's game is running. Picking again replaces the court's next turn. |
+| AC-F11-08 | A host can choose the players by hand from waiting players; the screen warns when the choice skips a player with fewer counted games. |
+| AC-F11-09 | Finishing a game adds one game to each of its players, sets their wait start to now, stores the optional score, and sets `join_requests.games_played` to the player's finished rotation games. Scores of finished games can be edited later. |
+| AC-F11-10 | Rest or leave removes the player from the queue; if they were in a next turn, that turn is cleared. A player on court cannot rest or leave. A player with finished games cannot be marked as not arrived. |
+| AC-F11-11 | Number of courts 1 to 20, format doubles or singles. A court with a next turn or running game cannot be removed, and the format cannot change while any turn is open. |
+| AC-F11-12 | All changes run in one transaction that locks the match row, so two hosts tapping at once cannot double-book a player. The board refreshes every 10 seconds. |
+
+### Edge Cases
+- A player arrives late or returns from rest → counted games are raised to the current minimum, so they wait behind those who have waited longer.
+- A guest request is confirmed only after conversion (DEC-004), so every rotation player has an account and a name.
+- A host's manual `games_played` entry is overwritten when that player finishes another rotation game.
+
+### Not included
+Not taken from the reference tool: one shared group queue for any free court, court renaming, pasting names from WhatsApp (the roster comes from confirmed requests), and local backup files (the board is stored on the server).
+
+## 14. Out of Scope (Feature Level)
 
 Native mobile apps, multi-tenancy, automated waiting-list promotion, double-entry accounting, social chat, gateway refunds, PWA/offline, WhatsApp, no-show tracking. See PRD.md §10.

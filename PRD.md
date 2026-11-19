@@ -45,6 +45,7 @@ A user has one global role. Being host of a match is separate: `matches.host_id`
 - **FR-16** — Reward engine: a member who attends 5 matches within 2 months earns 1 free seat valid for 1 month from the fifth match. Admins can switch the promo on or off (DEC-015).
 - **FR-17** — Notifications: request approved, payment confirmed, hold expired, request rejected, match cancelled, reward earned. Channels: in-app and email (DEC-011).
 - **FR-18** — Match cancellation: a superadmin cancels a match; confirmed players are refunded to their wallets and notified (DEC-016).
+- **FR-19** — Court rotation (latest feature, added 2026-11-19): every match gets a rotation board that puts all confirmed players in a fair turn order across the courts. The host or an admin checks players in, sets the number of courts and the format (doubles or singles), and fills each court with one tap. The players who have played the fewest games go first, then those who have waited longest. Each court can limit gender (any, mixed, men, women) and use skill level (off, balanced, mixed). Games are started and finished on the board, with an optional score; finishing a game updates each player's games played (FR-12). Players can rest, return or leave. Other members see the board read-only. Rules in FEATURES.md §13 (F11) and DEC-021.
 
 ## 5. Non-Functional Requirements
 
@@ -84,6 +85,7 @@ Versions are minimums; use the current stable release at build time.
 | Monthly active members | ≥ 70% of registered base |
 | Match fill rate | ≥ 80% of capacity |
 | Reward redemption rate | ≥ 30% of earned free seats |
+| Court rotation fairness | In a session, games played differ by at most 1 between players who were present the whole time |
 
 ## 8. Risk Analysis & Mitigation
 

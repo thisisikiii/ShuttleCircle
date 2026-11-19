@@ -7,6 +7,7 @@ mod media;
 mod notify;
 mod payments;
 mod requests;
+mod rotation;
 mod settle;
 mod wallet;
 mod whatsapp;
@@ -100,6 +101,14 @@ fn router(st: AppState) -> Router {
         .route("/matches/{id}/cancel", post(matches::cancel))
         .route("/matches/{id}/games", put(matches::games))
         .route("/matches/{id}/media", get(media::list).post(media::upload).layer(DefaultBodyLimit::max(media::MAX_UPLOAD as usize + 1024 * 1024)))
+        .route("/matches/{id}/rotation", get(rotation::get).patch(rotation::settings))
+        .route("/matches/{id}/rotation/courts/{court}", patch(rotation::court))
+        .route("/matches/{id}/rotation/courts/{court}/next", post(rotation::next))
+        .route("/matches/{id}/rotation/players", post(rotation::players))
+        .route("/matches/{id}/rotation/players/{jr}", patch(rotation::player))
+        .route("/matches/{id}/rotation/games/{gid}", delete(rotation::clear).patch(rotation::score))
+        .route("/matches/{id}/rotation/games/{gid}/start", post(rotation::start))
+        .route("/matches/{id}/rotation/games/{gid}/finish", post(rotation::finish))
         .route("/media/{id}/file", get(media::file))
         .route("/media/{id}", delete(media::delete))
         .route("/join-requests", get(requests::queue))

@@ -31,6 +31,8 @@ graph LR
   T10-->T13
   T11-->T13
   T12-->T13
+  T05-->T14
+  T09-->T14
 ```
 
 ## 3. Task Register
@@ -144,5 +146,13 @@ graph LR
 - **Acceptance:** Site reachable over HTTPS with a valid certificate; a dump restores into a clean database; smoke tests pass at 375, 768 and 1280 px; no WCAG AA contrast or keyboard failures on the core flows.
 - **Verify:** `deploy/backup.sh` then restore; Playwright run; axe scan.
 - **BLOCKED: domain and VPS details.** A staging deploy on `<ip>.sslip.io` is possible as soon as the VPS is named.
+
+### TASK-14 — Court Rotation (latest feature)
+- **Objective:** Rotation board on the match page: check-in, courts and format, per-court gender and level modes, pick by the rules, manual pick, start, finish with optional score, rest/return/leave, finished games list; finishing updates `games_played`.
+- **Sources:** FR-19; AC-F11-01 to AC-F11-12; API.md §3.9; DATABASE.md migration `0003_rotation.sql`.
+- **Decisions:** DEC-021
+- **Blocked by:** TASK-05, TASK-09
+- **Acceptance:** With 10 checked-in players and 2 doubles courts, players who have played least are picked first; teams are 1+4 vs 2+3; a late arrival does not jump ahead; members see the board read-only; another member cannot change it (`403`).
+- **Verify:** `cargo test` (rotation rule tests); `python3 deploy/test/rotation_check.py` against the test stack; manual check on a phone-width screen.
 
 <!-- SDD_SOURCE_DOCS: api,architecture,database,decisions,design,features,prd -->

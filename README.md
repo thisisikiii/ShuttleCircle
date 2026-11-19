@@ -50,4 +50,8 @@ cd deploy                   # .env: DOMAIN=localhost, MIDTRANS_SERVER_KEY=<any t
 docker compose -f compose.yaml -f test/compose.test.yaml up -d --build
 python3 test/e2e.py         # 124 API checks through Caddy
 node test/ui_smoke.cjs      # needs playwright-core and Chromium
+python3 test/rotation_check.py                                # court rotation, 41 API checks
+NODE_TLS_REJECT_UNAUTHORIZED=0 node test/ui_rotation.cjs     # court rotation board as host and player
 ```
+
+Court rotation (FR-19, the latest feature) is on every match page under **Rotasi lapangan**; see FEATURES.md §13.

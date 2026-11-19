@@ -150,6 +150,16 @@ This document records the selected answers and supplied text. `Answered` means a
 
 **Default:** The first superadmin is created by a command run on the server, never by self-registration. A host who plays requests to join like anyone else (and may approve their own request), so they count toward capacity and pay the fee.
 
+## DEC-021 — Court rotation rules
+
+**Status:** Requested by the owner on 2026-11-19 (FR-19)
+
+**Default:** Turn order is fewest games, then longest wait, then earliest arrival. Late arrivals and returning players start at the current minimum game count. Teams are queue positions 1 + 4 against 2 + 3. Gender and level are optional per court; level never lets a player with more games go ahead. The board is kept on the server per match, its players are the confirmed roster, and finished games feed `games_played`. These rules were taken from the owner's reference tool (a free court-queue web app), observed by testing it, not by copying its code.
+
+**Not included:** a shared group queue for any free court, court names, pasting player lists, and gender or level in the user profile (they are set per match on the board).
+
+**Why:** It puts the "who plays next" step of a social session into the app the club already uses, with the same fairness rules the owner already trusts, and with no new screens outside the match page.
+
 ---
 
 ## Inputs still required from the owner

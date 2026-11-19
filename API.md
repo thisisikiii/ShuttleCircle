@@ -216,3 +216,40 @@ Media are fetched with the bearer header and shown through object URLs, so files
 | `GET /whatsapp` | Superadmin | Link state of the WhatsApp gateway: `{enabled, status, number, name, qr}`. `qr` is a PNG data URL while `status` is `SCAN_QR_CODE`; `WORKING` means linked. Starts the session when needed |
 | `POST /whatsapp/logout` | Superadmin | Unlinks the WhatsApp account. `204` |
 | `GET /healthz` | Anyone | `200 {"status":"ok","features":{"gateway":bool,"google":bool,"email":bool}}` when the database answers; `features` tells the web app which optional integrations are configured |
+
+### 3.9 Court rotation (FR-19, F11)
+
+All paths are under `/matches/{id}/rotation`. `GET` is open to any signed-in member; every other call needs the match host, an admin or a superadmin, and returns `409 MATCH_NOT_OPEN` for a cancelled match. Every call returns the whole board (below), so the screen redraws from one response.
+
+| Method & path | Purpose |
+|:---|:---|
+| `GET /matches/{id}/rotation` | The board |
+| `PATCH /matches/{id}/rotation` | Body `{courts?: 1..20, singles?: bool}`. `409 COURT_BUSY` when removing a court with an open turn, or changing format while any turn is open |
+| `PATCH /matches/{id}/rotation/courts/{court}` | Body `{gender_mode?: any\|mixed\|men\|women, level_mode?: off\|balanced\|mixed}` |
+| `POST /matches/{id}/rotation/players` | Body `{join_request_ids: [], state: waiting\|resting\|left\|absent}`. `waiting` = arrived or back from rest. `409 PLAYER_ON_COURT`, `409 PLAYER_HAS_GAMES` (for `absent`) |
+| `PATCH /matches/{id}/rotation/players/{join_request_id}` | Body `{gender?: "M"\|"F"\|"", level?: 0..3}`; `""` and `0` clear. `409 PLAYER_NOT_ARRIVED` |
+| `POST /matches/{id}/rotation/courts/{court}/next` | Sets the court's next turn, replacing any earlier one. No body: picked by the rules (`409 NOT_ENOUGH_PLAYERS`). Body `{team_a: [], team_b: []}`: chosen by hand from waiting players |
+| `DELETE /matches/{id}/rotation/games/{game_id}` | Clears a next turn. `409 GAME_STARTED` |
+| `POST /matches/{id}/rotation/games/{game_id}/start` | Next turn → running. `409 COURT_BUSY` while the court's game runs |
+| `POST /matches/{id}/rotation/games/{game_id}/finish` | Optional body `{score_a, score_b}`. Running → done; updates `games_played` (AC-F11-09) |
+| `PATCH /matches/{id}/rotation/games/{game_id}` | Body `{score_a, score_b}` for a finished game. `409 GAME_NOT_DONE` |
+
+Board:
+```json
+{
+  "singles": false,
+  "courts": [{ "court": 1, "gender_mode": "any", "level_mode": "off" }],
+  "players": [{
+    "join_request_id": "…", "name": "Sari", "state": "waiting",
+    "gender": "F", "level": 2, "arrived_at": "…", "wait_since": "…",
+    "games": 1, "effective_games": 1, "minutes_played": 14,
+    "queued": false, "queue_position": 3
+  }],
+  "games": [{
+    "id": "…", "court": 1, "status": "playing",
+    "team_a": ["…", "…"], "team_b": ["…", "…"],
+    "score_a": null, "score_b": null, "started_at": "…", "ended_at": null
+  }]
+}
+```
+`state` is `absent`, `waiting`, `playing`, `resting` or `left`. `queued` means the player is in a court's next turn. `queue_position` (1-based) is set for waiting players who are free to be picked.

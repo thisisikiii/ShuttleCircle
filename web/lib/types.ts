@@ -59,7 +59,41 @@ export type JoinRequest = {
   created_at: string;
 };
 
-export type MatchDetail = Match & { roster?: RosterEntry[]; requests?: JoinRequest[]; can_manage?: boolean };
+export type GenderMode = "any" | "mixed" | "men" | "women";
+export type LevelMode = "off" | "balanced" | "mixed";
+export type RotationPlayer = {
+  join_request_id: string;
+  name: string;
+  state: "absent" | "waiting" | "playing" | "resting" | "left";
+  gender: "M" | "F" | null;
+  level: 1 | 2 | 3 | null;
+  arrived_at: string | null;
+  wait_since: string | null;
+  games: number;
+  effective_games: number;
+  minutes_played: number;
+  queued: boolean;
+  queue_position: number | null;
+};
+export type RotationGame = {
+  id: string;
+  court: number;
+  status: "next" | "playing" | "done";
+  team_a: string[];
+  team_b: string[];
+  score_a: number | null;
+  score_b: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+};
+export type Rotation = {
+  singles: boolean;
+  courts: { court: number; gender_mode: GenderMode; level_mode: LevelMode }[];
+  players: RotationPlayer[];
+  games: RotationGame[];
+};
+
+export type MatchDetail = Match &{ roster?: RosterEntry[]; requests?: JoinRequest[]; can_manage?: boolean };
 
 export type Payment = { id: string; amount_idr: number; redirect_url: string; expires_at: string };
 export type PayResult = { status: "confirmed" } | { status: "awaiting_payment"; payment: Payment };

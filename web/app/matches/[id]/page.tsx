@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { InviteForm } from "@/components/invite";
+import { RotationSection } from "@/components/rotation";
 import {
   Button,
   Chip,
@@ -118,6 +119,7 @@ function Detail({ m }: { m: MatchDetail }) {
 
         <div className="space-y-8">
           {m.roster && <Roster m={m} editable={!!m.can_manage && started} />}
+          {m.roster && m.status !== "cancelled" && <RotationSection matchId={m.id} manage={!!m.can_manage} />}
           {m.can_manage && m.requests && <Requests requests={m.requests} />}
           <MediaSection m={m} />
         </div>
