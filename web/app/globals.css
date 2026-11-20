@@ -140,3 +140,21 @@
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+/* Printing the Wallet page prints only the finance report (Cetak / simpan PDF). */
+@media print {
+  body:has(#finance-report) * {
+    visibility: hidden;
+  }
+  /* same :has() prefix, so this outranks the hiding rule above */
+  body:has(#finance-report) #finance-report,
+  body:has(#finance-report) #finance-report * {
+    visibility: visible;
+  }
+  #finance-report {
+    position: absolute;
+    inset: 0 0 auto 0;
+    border: 0;
+    box-shadow: none;
+  }
+}

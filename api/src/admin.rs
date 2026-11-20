@@ -83,6 +83,10 @@ pub struct RangeQ {
 /// AC-F10-01. Dates are Asia/Jakarta calendar days, inclusive; default is the current month to date.
 pub async fn finance(State(st): State<AppState>, m: Member, Query(q): Query<RangeQ>) -> R<Json<Value>> {
     m.need(Role::Admin)?;
+    Ok(ok(summary(&st, &q).await?))
+}
+
+async fn summary(st: &AppState, q: &RangeQ) -> R<Value> {
     let v: Value = sqlx::query_scalar(
         "WITH d AS (SELECT coalesce($1::date, date_trunc('month', now() AT TIME ZONE 'Asia/Jakarta')::date) AS d1, \
                            coalesce($2::date, (now() AT TIME ZONE 'Asia/Jakarta')::date) AS d2), \
@@ -101,13 +105,157 @@ pub async fn finance(State(st): State<AppState>, m: Member, Query(q): Query<Rang
                'shuttlecock', coalesce(sum(amount_idr) FILTER (WHERE category = 'shuttlecock'), 0), \
                'other', coalesce(sum(amount_idr) FILTER (WHERE category = 'other'), 0)) \
              FROM expenses WHERE spent_on BETWEEN r.d1 AND r.d2), \
-           'member_balance_idr', (SELECT coalesce(sum(balance_idr), 0) FROM wallets)) FROM r",
+           'member_balance_idr', (SELECT coalesce(sum(balance_idr), 0) FROM wallets), \
+           'discrepancy_idr', (SELECT coalesce(sum(amount_idr), 0) FROM wallet_txns) - (SELECT coalesce(sum(balance_idr), 0) FROM wallets)) FROM r",
     )
     .bind(q.from)
     .bind(q.to)
     .fetch_one(&st.db)
     .await?;
-    Ok(ok(v))
+    Ok(v)
+}
+
+/// Players per week and per month (12 each, current period last): confirmed seats in matches
+/// starting in the period, distinct players among them, and accounts created in the period.
+pub async fn players(State(st): State<AppState>, m: Member) -> R<Json<Value>> {
+    m.need(Role::Admin)?;
+    Ok(ok(player_buckets(&st).await?))
+}
+
+async fn player_buckets(st: &AppState) -> R<Value> {
+    let mut out = serde_json::Map::new();
+    for unit in ["week", "month"] {
+        let rows: Value = sqlx::query_scalar(
+            "WITH b AS (SELECT s, s + ('1 ' || $1)::interval AS e FROM generate_series( \
+                 date_trunc($1, now() AT TIME ZONE 'Asia/Jakarta') - 11 * ('1 ' || $1)::interval, \
+                 date_trunc($1, now() AT TIME ZONE 'Asia/Jakarta'), ('1 ' || $1)::interval) s), \
+                  c AS (SELECT j.user_id, m.starts_at AT TIME ZONE 'Asia/Jakarta' AS at FROM join_requests j JOIN matches m ON m.id = j.match_id \
+                        WHERE j.status = 'confirmed' AND m.cancelled_at IS NULL) \
+             SELECT jsonb_agg(jsonb_build_object('start', b.s::date, \
+               'seats', (SELECT count(*) FROM c WHERE c.at >= b.s AND c.at < b.e), \
+               'players', (SELECT count(DISTINCT c.user_id) FROM c WHERE c.at >= b.s AND c.at < b.e), \
+               'new_members', (SELECT count(*) FROM users u WHERE u.created_at AT TIME ZONE 'Asia/Jakarta' >= b.s AND u.created_at AT TIME ZONE 'Asia/Jakarta' < b.e)) \
+             ORDER BY b.s) FROM b",
+        )
+        .bind(unit)
+        .fetch_one(&st.db)
+        .await?;
+        out.insert(format!("{unit}s"), rows);
+    }
+    Ok(Value::Object(out))
+}
+
+/// Excel workbook of the finance range: summary, ledger, expenses, players per week and month.
+pub async fn report_xlsx(State(st): State<AppState>, m: Member, Query(q): Query<RangeQ>) -> R<impl axum::response::IntoResponse> {
+    use axum::http::header;
+    use rust_xlsxwriter::{Format, Workbook};
+    m.need(Role::Admin)?;
+    let sum = summary(&st, &q).await?;
+    let (from, to) = (sum["from"].as_str().unwrap_or_default().to_string(), sum["to"].as_str().unwrap_or_default().to_string());
+    let ledger: Vec<(chrono::DateTime<chrono::Utc>, String, String, i64, Option<String>)> = sqlx::query_as(
+        "SELECT t.created_at, u.full_name, t.txn_type::text, t.amount_idr, t.note FROM wallet_txns t JOIN users u ON u.id = t.user_id \
+         WHERE t.created_at >= ($1::date)::timestamp AT TIME ZONE 'Asia/Jakarta' AND t.created_at < ($2::date + 1)::timestamp AT TIME ZONE 'Asia/Jakarta' \
+         ORDER BY t.created_at",
+    )
+    .bind(&from)
+    .bind(&to)
+    .fetch_all(&st.db)
+    .await?;
+    let expenses: Vec<(NaiveDate, String, i64, Option<String>)> =
+        sqlx::query_as("SELECT spent_on, category::text, amount_idr, note FROM expenses WHERE spent_on BETWEEN $1::date AND $2::date ORDER BY spent_on")
+            .bind(&from)
+            .bind(&to)
+            .fetch_all(&st.db)
+            .await?;
+    let buckets = player_buckets(&st).await?;
+
+    let x = internal; // an xlsx error here is a bug or out of memory
+    let bold = Format::new().set_bold();
+    let idr = Format::new().set_num_format("#,##0");
+    let n = |v: &Value| v.as_i64().unwrap_or(0) as f64;
+    let mut wb = Workbook::new();
+    {
+        let ws = wb.add_worksheet().set_name("Ringkasan").map_err(x)?;
+        ws.write_string_with_format(0, 0, "Laporan keuangan ShuttleCircle", &bold).map_err(x)?;
+        ws.write_string(1, 0, format!("Periode {from} s.d. {to}")).map_err(x)?;
+        let e = &sum["expenses"];
+        let rows = [
+            ("Kas masuk (top-up dan kredit manual)", n(&sum["cash_in_idr"])),
+            ("Pendapatan biaya main", n(&sum["fee_income_idr"])),
+            ("Pendapatan keanggotaan", n(&sum["membership_income_idr"])),
+            ("Donasi", n(&sum["donation_idr"])),
+            ("Sewa lapangan", n(&sum["court_cost_idr"])),
+            ("Air minum", n(&e["drinking_water"])),
+            ("Kok", n(&e["shuttlecock"])),
+            ("Pengeluaran lain", n(&e["other"])),
+            ("Total saldo dompet anggota (saat ini)", n(&sum["member_balance_idr"])),
+            ("Selisih buku besar vs saldo (harus 0)", n(&sum["discrepancy_idr"])),
+        ];
+        for (i, (label, v)) in rows.iter().enumerate() {
+            ws.write_string(3 + i as u32, 0, *label).map_err(x)?;
+            ws.write_number_with_format(3 + i as u32, 1, *v, &idr).map_err(x)?;
+        }
+        ws.set_column_width(0, 42).map_err(x)?;
+        ws.set_column_width(1, 16).map_err(x)?;
+    }
+    {
+        let ws = wb.add_worksheet().set_name("Buku besar").map_err(x)?;
+        for (c, h) in ["Waktu (WIB)", "Anggota", "Jenis", "Jumlah (Rp)", "Catatan"].iter().enumerate() {
+            ws.write_string_with_format(0, c as u16, *h, &bold).map_err(x)?;
+        }
+        for (i, (at, name, kind, amount, note)) in ledger.iter().enumerate() {
+            let r = 1 + i as u32;
+            let wib = *at + chrono::Duration::hours(7); // Asia/Jakarta has no daylight saving
+            ws.write_string(r, 0, wib.format("%Y-%m-%d %H:%M").to_string()).map_err(x)?;
+            ws.write_string(r, 1, name).map_err(x)?;
+            ws.write_string(r, 2, kind).map_err(x)?;
+            ws.write_number_with_format(r, 3, *amount as f64, &idr).map_err(x)?;
+            ws.write_string(r, 4, note.as_deref().unwrap_or("")).map_err(x)?;
+        }
+        for (c, w) in [17, 24, 15, 14, 30].into_iter().enumerate() {
+            ws.set_column_width(c as u16, w).map_err(x)?;
+        }
+    }
+    {
+        let ws = wb.add_worksheet().set_name("Pengeluaran").map_err(x)?;
+        for (c, h) in ["Tanggal", "Kategori", "Jumlah (Rp)", "Catatan"].iter().enumerate() {
+            ws.write_string_with_format(0, c as u16, *h, &bold).map_err(x)?;
+        }
+        for (i, (on, cat, amount, note)) in expenses.iter().enumerate() {
+            let r = 1 + i as u32;
+            ws.write_string(r, 0, on.to_string()).map_err(x)?;
+            ws.write_string(r, 1, cat).map_err(x)?;
+            ws.write_number_with_format(r, 2, *amount as f64, &idr).map_err(x)?;
+            ws.write_string(r, 3, note.as_deref().unwrap_or("")).map_err(x)?;
+        }
+        for (c, w) in [12, 16, 14, 30].into_iter().enumerate() {
+            ws.set_column_width(c as u16, w).map_err(x)?;
+        }
+    }
+    for (key, title) in [("weeks", "Pemain per minggu"), ("months", "Pemain per bulan")] {
+        let ws = wb.add_worksheet().set_name(title).map_err(x)?;
+        for (c, h) in ["Mulai periode", "Kursi terkonfirmasi", "Pemain unik", "Anggota baru"].iter().enumerate() {
+            ws.write_string_with_format(0, c as u16, *h, &bold).map_err(x)?;
+        }
+        for (i, b) in buckets[key].as_array().into_iter().flatten().enumerate() {
+            let r = 1 + i as u32;
+            ws.write_string(r, 0, b["start"].as_str().unwrap_or("")).map_err(x)?;
+            ws.write_number(r, 1, n(&b["seats"])).map_err(x)?;
+            ws.write_number(r, 2, n(&b["players"])).map_err(x)?;
+            ws.write_number(r, 3, n(&b["new_members"])).map_err(x)?;
+        }
+        for (c, w) in [14, 18, 12, 13].into_iter().enumerate() {
+            ws.set_column_width(c as u16, w).map_err(x)?;
+        }
+    }
+    let bytes = wb.save_to_buffer().map_err(x)?;
+    Ok((
+        [
+            (header::CONTENT_TYPE, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet".to_string()),
+            (header::CONTENT_DISPOSITION, format!("attachment; filename=\"shuttlecircle-laporan-{from}-{to}.xlsx\"")),
+        ],
+        bytes,
+    ))
 }
 
 pub async fn expenses(State(st): State<AppState>, m: Member, Query(q): Query<RangeQ>) -> R<Json<Value>> {

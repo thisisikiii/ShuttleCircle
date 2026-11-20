@@ -88,6 +88,10 @@ A Tokio task inside the `api` process, ticking every 30 seconds. Each job is a s
 
 The API reports which optional features are configured through `GET /api/v1/healthz` (`features: {gateway, google, email}`) so the web app can hide what is unavailable.
 
+### Sandbox (DEC-022)
+
+`deploy/sandbox/` holds the overlay for the dev copy at https://dev.shuttlecircle.personifinn.site: run with `COMPOSE_FILE=compose.yaml:sandbox/compose.sandbox.yaml` and its own `.env`. It replaces the Caddyfile with one that also routes `/sandbox-pay/*` to the fake checkout (`sandbox/pay_stub.py`).
+
 ### Build and release (DEC-018)
 
 1. Build `api` and `web` images off the VPS with multi-stage Dockerfiles (`api`: `rust` builder → `debian:stable-slim`; `web`: `node` builder → standalone runtime). Tag with the git commit.

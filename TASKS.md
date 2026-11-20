@@ -156,4 +156,12 @@ graph LR
 - **Acceptance:** With 10 checked-in players and 2 doubles courts, players who have played least are picked first; teams are 1+4 vs 2+3; a late arrival does not jump ahead; members see the board read-only; another member cannot change it (`403`).
 - **Verify:** `cargo test` (rotation rule tests); `python3 deploy/test/rotation_check.py` against the test stack; manual check on a phone-width screen.
 
+### TASK-15 — Finance Dashboard, Reports, Sandbox
+- **Objective:** Wallet-page finance dashboard (pie, player bar chart, Excel and PDF report) and the dev sandbox with a fake checkout page.
+- **Sources:** FR-20, FR-21; AC-F10-06 to AC-F10-09; API.md §3.7.
+- **Decisions:** DEC-022, DEC-023
+- **Blocked by:** TASK-12
+- **Acceptance:** discrepancy is 0 after credits and expenses; players chart counts a new confirmed seat; the .xlsx opens with five sheets; printing shows only the dashboard; members get 403 on the finance endpoints; the sandbox checkout page confirms a held seat.
+- **Verify:** `python3 deploy/test/finance_check.py` on the sandbox; manual pass of `deploy/sandbox/README.md`.
+
 <!-- SDD_SOURCE_DOCS: api,architecture,database,decisions,design,features,prd -->

@@ -13,7 +13,7 @@
 | F7 Match History & Media | Host, Admin, Member | DEC-012, DEC-017 | API.md §3.6 |
 | F8 Reward Engine | Member | DEC-015 | DATABASE.md `rewards` |
 | F9 Notifications | Members | DEC-011 | ARCHITECTURE.md §4 |
-| F10 Finance Dashboard & Admin | Admin, Superadmin | — | API.md §3.7 |
+| F10 Finance Dashboard & Admin | Admin, Superadmin | DEC-023 | API.md §3.7 |
 | F11 Court Rotation (latest) | Host, Admin; Members read-only | DEC-021 | API.md §3.9 |
 
 Field names in this file match `DATABASE.md` and `API.md`.
@@ -238,6 +238,10 @@ stateDiagram-v2
 | AC-F10-03 | Superadmins search users and change role and status. A superadmin cannot demote or suspend themselves. |
 | AC-F10-04 | Admins search members and view any member's wallet and ledger. |
 | AC-F10-05 | Settings: reward on/off (admin), membership price and minimum top-up (superadmin). |
+| AC-F10-06 | The Wallet page of an admin or superadmin shows the club finance dashboard for a date range (default: this month to date): a pie of income (fee + membership + donation), outcome (court cost + all expense categories), current total member balance and the absolute ledger discrepancy, each with its amount and share; net = income − outcome. Members do not see it. |
+| AC-F10-07 | Discrepancy = sum of all `wallet_txns` − sum of all wallet balances, all time. 0 shows "Sesuai"; anything else shows "Perlu dicek". |
+| AC-F10-08 | Bar chart of players joined for the last 12 weeks (Monday start) or 12 months, switchable: bar = distinct players with a confirmed seat in matches starting in the period; hover and the table view also give confirmed seats and new accounts. |
+| AC-F10-09 | **Unduh Excel** downloads `shuttlecircle-laporan-<from>-<to>.xlsx` with sheets Ringkasan, Buku besar, Pengeluaran, Pemain per minggu, Pemain per bulan. **Cetak / simpan PDF** prints only the dashboard (the browser's Save as PDF makes the file). |
 
 ## 13. F11 — Court Rotation (latest feature)
 

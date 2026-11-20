@@ -162,6 +162,22 @@ This document records the selected answers and supplied text. `Answered` means a
 
 **Why:** It puts the "who plays next" step of a social session into the app the club already uses, with the same fairness rules the owner already trusts, and with no new screens outside the match page.
 
+## DEC-022 — Sandbox before production
+
+**Status:** Requested by the owner on 2026-11-20 (FR-21)
+
+**Default:** A second, smaller stack on the same box (`~/shuttlecircle-dev`, Compose project `scdev`, port 8091) behind https://dev.shuttlecircle.personifinn.site, through the same Cloudflare Worker as production. It uses `deploy/sandbox/compose.sandbox.yaml`: memory caps, a fake Midtrans with a clickable checkout page, no email, no WhatsApp, its own database and secrets, and its own image names so a sandbox build never replaces production images. Releases go to the sandbox first and to production only after the owner has tested them by hand. See `deploy/sandbox/README.md`.
+
+**Why:** The owner tests every feature manually before members see it, without real money, emails or WhatsApp messages.
+
+## DEC-023 — Finance dashboard and reports
+
+**Status:** Requested by the owner on 2026-11-20 (FR-20)
+
+**Default:** On the Wallet page, for admins only. Charts are inline SVG (no chart library). Excel is built by the API with `rust_xlsxwriter`; PDF is the browser's print of the dashboard (Save as PDF), so no PDF library is added.
+
+**Smaller option not taken:** CSV instead of .xlsx.
+
 ---
 
 ## Inputs still required from the owner

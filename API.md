@@ -199,7 +199,9 @@ Media are fetched with the bearer header and shown through object URLs, so files
 |:---|:---|:---|
 | `GET /users?q=` | Admin | Search by name or email |
 | `PATCH /users/{id}` | Superadmin | `{role?, status?}`. Not on self |
-| `GET /finance/summary?from=&to=` | Admin | Figures of AC-F10-01 |
+| `GET /finance/summary?from=&to=` | Admin | Figures of AC-F10-01, plus `discrepancy_idr` (AC-F10-07), `from`, `to` |
+| `GET /finance/players` | Admin | `{weeks: [...], months: [...]}`, 12 each, oldest first: `{start, seats, players, new_members}` (AC-F10-08) |
+| `GET /finance/report.xlsx?from=&to=` | Admin | Excel workbook of AC-F10-09, sent as an attachment |
 | `GET /expenses?from=&to=` | Admin | List |
 | `POST /expenses` | Superadmin | `{category, amount_idr, spent_on, note?}` |
 | `DELETE /expenses/{id}` | Superadmin | Remove |

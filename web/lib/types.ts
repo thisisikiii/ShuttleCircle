@@ -148,7 +148,12 @@ export type FinanceSummary = {
   court_cost_idr: number;
   expenses: Record<ExpenseCategory, number>;
   member_balance_idr: number;
+  discrepancy_idr: number;
+  from: string;
+  to: string;
 };
+export type PlayerBucket = { start: string; seats: number; players: number; new_members: number };
+export type PlayerBuckets = { weeks: PlayerBucket[]; months: PlayerBucket[] };
 export type Expense = {
   id: string;
   category: ExpenseCategory;

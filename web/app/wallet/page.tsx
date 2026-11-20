@@ -2,12 +2,13 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
+import { FinanceDashboard } from "@/components/finance-dashboard";
 import { Ledger } from "@/components/ledger";
 import { Guard } from "@/components/shell";
 import { Alert, Button, Chip, ErrorAlert, Input, PageHeader, Strip } from "@/components/ui";
 import { api, inPaymentTab, useAct } from "@/lib/api";
 import { fmtDate, fmtMonth, monthStart, rupiah } from "@/lib/format";
-import { useFeatures } from "@/lib/session";
+import { atLeast, useFeatures } from "@/lib/session";
 import { t } from "@/lib/strings";
 import type { Member, Payment } from "@/lib/types";
 
@@ -51,6 +52,7 @@ function Wallet({ me }: { me: Member }) {
   return (
     <>
       <PageHeader title={t.wallet.title} />
+      {atLeast(me, "admin") && <FinanceDashboard />}
       <Strip
         className="sm:grid-cols-3"
         items={[

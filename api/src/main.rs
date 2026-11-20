@@ -129,6 +129,8 @@ fn router(st: AppState) -> Router {
         .route("/users", get(admin::users))
         .route("/users/{id}", patch(admin::update_user))
         .route("/finance/summary", get(admin::finance))
+        .route("/finance/players", get(admin::players))
+        .route("/finance/report.xlsx", get(admin::report_xlsx))
         .route("/expenses", get(admin::expenses).post(admin::add_expense))
         .route("/expenses/{id}", delete(admin::delete_expense))
         .route("/settings", get(admin::settings).patch(admin::update_settings))

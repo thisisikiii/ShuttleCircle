@@ -1,0 +1,28 @@
+# Sandbox (dev) overlay: a small copy of production for manual testing before a release.
+# Fake Midtrans with a clickable checkout page, no email, no WhatsApp, memory capped.
+# Set in the sandbox .env (see sandbox/README.md):
+#   COMPOSE_PROJECT_NAME=scdev
+#   COMPOSE_FILE=compose.yaml:sandbox/compose.sandbox.yaml
+services:
+  caddy:
+    mem_limit: 64m
+    volumes:
+      - ./sandbox/Caddyfile:/etc/caddy/Caddyfile:ro
+  api:
+    mem_limit: 128m
+    environment:
+      MIDTRANS_SNAP_URL: http://midtrans-stub:8000
+  web:
+    mem_limit: 256m
+  db:
+    mem_limit: 256m
+  midtrans-stub:
+    image: python:3-alpine
+    restart: unless-stopped
+    mem_limit: 48m
+    environment:
+      MIDTRANS_SERVER_KEY: ${MIDTRANS_SERVER_KEY}
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./sandbox/pay_stub.py:/stub.py:ro
+    command: python /stub.py
