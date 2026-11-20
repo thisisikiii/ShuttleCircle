@@ -231,7 +231,8 @@ All paths are under `/matches/{id}/rotation`. `GET` is open to any signed-in mem
 | `POST /matches/{id}/rotation/courts/{court}/next` | Sets the court's next turn, replacing any earlier one. No body: picked by the rules (`409 NOT_ENOUGH_PLAYERS`). Body `{team_a: [], team_b: []}`: chosen by hand from waiting players |
 | `DELETE /matches/{id}/rotation/games/{game_id}` | Clears a next turn. `409 GAME_STARTED` |
 | `POST /matches/{id}/rotation/games/{game_id}/start` | Next turn → running. `409 COURT_BUSY` while the court's game runs |
-| `POST /matches/{id}/rotation/games/{game_id}/finish` | Optional body `{score_a, score_b}`. Running → done; updates `games_played` (AC-F11-09) |
+| `POST /matches/{id}/rotation/games/{game_id}/point` | Body `{team: "a"\|"b", delta: 1\|-1}`. Live score of a running game (AC-F11-13). `409 GAME_NOT_PLAYING`, `409 GAME_DECIDED` |
+| `POST /matches/{id}/rotation/games/{game_id}/finish` | Optional body `{score_a, score_b}`; a missing score keeps the live one. Running → done; updates `games_played` (AC-F11-09) |
 | `PATCH /matches/{id}/rotation/games/{game_id}` | Body `{score_a, score_b}` for a finished game. `409 GAME_NOT_DONE` |
 
 Board:
@@ -248,8 +249,13 @@ Board:
   "games": [{
     "id": "…", "court": 1, "status": "playing",
     "team_a": ["…", "…"], "team_b": ["…", "…"],
-    "score_a": null, "score_b": null, "started_at": "…", "ended_at": null
+    "score_a": 20, "score_b": 15, "started_at": "…", "ended_at": null,
+    "winner": null, "game_point": ["a"]
+  }],
+  "leaderboard": [{
+    "rank": 1, "join_request_id": "…", "name": "Sari", "games": 2, "wins": 2, "losses": 0,
+    "points_for": 42, "points_against": 30, "point_diff": 12
   }]
 }
 ```
-`state` is `absent`, `waiting`, `playing`, `resting` or `left`. `queued` means the player is in a court's next turn. `queue_position` (1-based) is set for waiting players who are free to be picked.
+`state` is `absent`, `waiting`, `playing`, `resting` or `left`. `queued` means the player is in a court's next turn. `queue_position` (1-based) is set for waiting players who are free to be picked. `winner` and `game_point` are computed (AC-F11-13); `leaderboard` follows AC-F11-14.

@@ -85,12 +85,26 @@ export type RotationGame = {
   score_b: number | null;
   started_at: string | null;
   ended_at: string | null;
+  winner: "a" | "b" | null;
+  game_point: ("a" | "b")[];
+};
+export type LeaderboardRow = {
+  rank: number;
+  join_request_id: string;
+  name: string;
+  games: number;
+  wins: number;
+  losses: number;
+  points_for: number;
+  points_against: number;
+  point_diff: number;
 };
 export type Rotation = {
   singles: boolean;
   courts: { court: number; gender_mode: GenderMode; level_mode: LevelMode }[];
   players: RotationPlayer[];
   games: RotationGame[];
+  leaderboard: LeaderboardRow[];
 };
 
 export type MatchDetail = Match &{ roster?: RosterEntry[]; requests?: JoinRequest[]; can_manage?: boolean };

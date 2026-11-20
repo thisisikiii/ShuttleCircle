@@ -156,6 +156,8 @@ This document records the selected answers and supplied text. `Answered` means a
 
 **Default:** Turn order is fewest games, then longest wait, then earliest arrival. Late arrivals and returning players start at the current minimum game count. Teams are queue positions 1 + 4 against 2 + 3. Gender and level are optional per court; level never lets a player with more games go ahead. The board is kept on the server per match, its players are the confirmed roster, and finished games feed `games_played`. These rules were taken from the owner's reference tool (a free court-queue web app), observed by testing it, not by copying its code.
 
+**Scoring (added 2026-11-20):** one game per court turn, BWF rally scoring to 21 (win by 2, 30 caps). Live score is kept on the server so every phone shows the same number; the leaderboard is per match and computed, never stored.
+
 **Not included:** a shared group queue for any free court, court names, pasting player lists, and gender or level in the user profile (they are set per match on the board).
 
 **Why:** It puts the "who plays next" step of a social session into the app the club already uses, with the same fairness rules the owner already trusts, and with no new screens outside the match page.

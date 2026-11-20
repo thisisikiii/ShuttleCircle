@@ -301,7 +301,7 @@ CREATE UNIQUE INDEX rotation_games_one_next    ON rotation_games(match_id, court
 CREATE UNIQUE INDEX rotation_games_one_playing ON rotation_games(match_id, court) WHERE status = 'playing';
 ```
 
-Games played and minutes played are counted from `done` games, never stored on the player. Gender and level are per match, set by the host on the board; they are not part of the user profile.
+Games played and minutes played are counted from `done` games, never stored on the player. The live score of a running game is kept in `score_a` and `score_b`; the leaderboard is computed from finished games and has no table. Gender and level are per match, set by the host on the board; they are not part of the user profile.
 
 ## 4. Key queries
 

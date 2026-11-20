@@ -152,6 +152,7 @@ graph LR
 - **Sources:** FR-19; AC-F11-01 to AC-F11-12; API.md §3.9; DATABASE.md migration `0003_rotation.sql`.
 - **Decisions:** DEC-021
 - **Blocked by:** TASK-05, TASK-09
+- **Acceptance (scoring, 2026-11-20):** live +1/−1 per rally, match point at 20–x and at deuce leads, winner at 21+2 or 30, finish keeps the live score, leaderboard ranked by wins then point difference.
 - **Acceptance:** With 10 checked-in players and 2 doubles courts, players who have played least are picked first; teams are 1+4 vs 2+3; a late arrival does not jump ahead; members see the board read-only; another member cannot change it (`403`).
 - **Verify:** `cargo test` (rotation rule tests); `python3 deploy/test/rotation_check.py` against the test stack; manual check on a phone-width screen.
 

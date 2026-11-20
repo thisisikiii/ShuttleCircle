@@ -176,7 +176,38 @@ check(err(host.call("PATCH", R, {"singles": True})) == (409, "COURT_BUSY"), "can
 check(err(host.call("POST", f"{R}/courts/2/next", {"team_a": [jr["Andi"]], "team_b": [jr["Budi"]]}))[0] == 422, "manual pick needs full teams")
 check(err(host.call("POST", f"{R}/courts/2/next", {"team_a": [jr["Eko"], jr["Budi"]], "team_b": [jr["Citra"], jr["Dewi"]]}))[0] == 422, "manual pick rejects a player on court")
 
-print("8. cancelled match is closed")
+print("8. live scoreboard and match point (AC-F11-13)")
+P = f"{R}/games/{g2}/point"
+check(err(players[0].call("POST", P, {"team": "a", "delta": 1})) == (403, "FORBIDDEN"), "member cannot score")
+check(err(host.call("POST", P, {"team": "c", "delta": 1}))[0] == 422, "unknown team rejected")
+nxt = game(board(), 1, "next")["id"]
+check(err(host.call("POST", f"{R}/games/{nxt}/point", {"team": "a", "delta": 1})) == (409, "GAME_NOT_PLAYING"), "no live score before the game starts")
+for _ in range(20):
+    host.data("POST", P, {"team": "a", "delta": 1})
+for _ in range(15):
+    b = host.data("POST", P, {"team": "b", "delta": 1})
+g = next(x for x in b["games"] if x["id"] == g2)
+check((g["score_a"], g["score_b"], g["game_point"], g["winner"]) == (20, 15, ["a"], None), "20-15: match point team A", str(g))
+b = host.data("POST", P, {"team": "a", "delta": 1})
+g = next(x for x in b["games"] if x["id"] == g2)
+check(g["winner"] == "a" and g["game_point"] == [], "21-15: team A wins")
+check(err(host.call("POST", P, {"team": "b", "delta": 1})) == (409, "GAME_DECIDED"), "no points after the game is won")
+b = host.data("POST", P, {"team": "a", "delta": -1})
+check(next(x for x in b["games"] if x["id"] == g2)["score_a"] == 20, "undo last point")
+host.data("POST", P, {"team": "a", "delta": 1})
+b = host.data("POST", f"{R}/games/{g2}/finish")
+g = next(x for x in b["games"] if x["id"] == g2)
+check((g["status"], g["score_a"], g["score_b"], g["winner"]) == ("done", 21, 15, "a"), "finish keeps the live score")
+
+print("9. leaderboard (AC-F11-14)")
+lb = b["leaderboard"]
+check([r["name"] for r in lb] == ["Eko", "Hadi", "Andi", "Dewi", "Budi", "Citra", "Fajar", "Gita"], "ranked by wins, then point difference", str([r["name"] for r in lb]))
+eko = lb[0]
+check((eko["rank"], eko["games"], eko["wins"], eko["losses"], eko["points_for"], eko["points_against"], eko["point_diff"]) == (1, 1, 1, 0, 21, 15, 6), "row totals", str(eko))
+check(next(r for r in lb if r["name"] == "Citra")["point_diff"] == -2, "loser gets a negative difference")
+check(board(outsider)["leaderboard"] == lb, "members see the same leaderboard")
+
+print("10. cancelled match is closed")
 root.data("POST", f"/matches/{m}/cancel")
 check(err(host.call("POST", f"{R}/courts/2/next")) == (409, "MATCH_NOT_OPEN"), "no changes after cancellation")
 

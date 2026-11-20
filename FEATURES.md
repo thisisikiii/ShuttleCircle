@@ -248,8 +248,10 @@ Added 2026-11-19 (FR-19, DEC-021). The rules follow the behaviour of a common co
 2. At the venue the host marks players as arrived, one by one or all at once. The board starts with 2 courts in doubles; the host can change both.
 3. For each court the host taps **Pilihkan pemain**. The system picks the next players by the rules below, splits them into two teams, and shows them as that court's next turn. The host can pick again, choose players by hand, or clear the turn.
 4. **Mulai** starts the game and its timer. Meanwhile the host can already prepare the court's following turn.
-5. **Selesai** ends the game, with an optional score. Every player in it gets one more game and starts waiting again. Their `games_played` on the roster is updated (FR-12).
-6. Players can rest, return or leave at any time, except while on court.
+5. While the game runs, the host taps **+1** for the team that won each rally (**−1** undoes). The board shows **Match point** when a team is one rally from winning and the winner when the game is decided.
+6. **Selesai** ends the game; the live score is kept (or typed in if no one kept score). Every player in it gets one more game and starts waiting again. Their `games_played` on the roster is updated (FR-12).
+7. Players can rest, return or leave at any time, except while on court.
+8. The match leaderboard ranks everyone who has finished a game.
 
 ### User Stories
 - As a host, I want the system to pick who plays next, so that everyone gets about the same number of games and nobody waits too long.
@@ -271,10 +273,13 @@ Added 2026-11-19 (FR-19, DEC-021). The rules follow the behaviour of a common co
 | AC-F11-10 | Rest or leave removes the player from the queue; if they were in a next turn, that turn is cleared. A player on court cannot rest or leave. A player with finished games cannot be marked as not arrived. |
 | AC-F11-11 | Number of courts 1 to 20, format doubles or singles. A court with a next turn or running game cannot be removed, and the format cannot change while any turn is open. |
 | AC-F11-12 | All changes run in one transaction that locks the match row, so two hosts tapping at once cannot double-book a player. The board refreshes every 10 seconds. |
+| AC-F11-13 | Live score (BWF single game): a team wins at 21 with a 2-point lead, or at 30. Match point is shown for every team one rally from winning (both at 29–29). A point after the game is won is rejected (`409 GAME_DECIDED`); −1 never goes below 0. Only a running game takes live points. Finishing without a score keeps the live score. |
+| AC-F11-14 | Leaderboard per match: every player with a finished game, with games, wins, losses, points for, points against and difference. Order: wins, difference, points for, name. A finished game without a score counts as played only. A typed-in finished score is won by the higher score, so shorter formats still count. |
 
 ### Edge Cases
 - A player arrives late or returns from rest → counted games are raised to the current minimum, so they wait behind those who have waited longer.
 - A guest request is confirmed only after conversion (DEC-004), so every rotation player has an account and a name.
+- Two scorers tap at once → both taps are counted in order (the match row is locked per tap).
 - A host's manual `games_played` entry is overwritten when that player finishes another rotation game.
 
 ### Not included

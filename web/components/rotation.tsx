@@ -105,6 +105,7 @@ export function RotationSection({ matchId, manage }: { matchId: string; manage: 
         ))}
       </ul>
 
+      <Leaderboard rows={data.leaderboard} />
       <Finished data={data} byId={byId} manage={manage} busy={act.isPending} run={run} />
     </section>
   );
@@ -185,9 +186,9 @@ function Court({
           <p className="label">
             {r.playing} · <span className="mono">{r.minutes(minutesSince(playing.started_at))}</span>
           </p>
-          <Teams g={playing} byId={byId} />
+          <Scoreboard g={playing} byId={byId} manage={manage} busy={busy} run={run} />
           {manage && (
-            <Button variant="primary" disabled={busy} onClick={() => setFinishing(true)}>
+            <Button variant="primary" className="mt-3" disabled={busy} onClick={() => setFinishing(true)}>
               {r.finish}
             </Button>
           )}
@@ -235,7 +236,10 @@ function Court({
 
       {playing && (
         <ScoreDialog
+          // remount on open so the dialog starts from the current live score
+          key={finishing ? "open" : "closed"}
           open={finishing}
+          initial={playing}
           title={r.finishTitle(n)}
           body={r.finishBody}
           onClose={() => setFinishing(false)}
@@ -259,6 +263,71 @@ function Court({
         />
       )}
     </div>
+  );
+}
+
+/** Live score of a running game. Hosts tap +1 per rally; everyone else sees it update on the 10 s poll. */
+function Scoreboard({
+  g,
+  byId,
+  manage,
+  busy,
+  run,
+}: {
+  g: RotationGame;
+  byId: Map<string, RotationPlayer>;
+  manage: boolean;
+  busy: boolean;
+  run: Run;
+}) {
+  const side = (x: "a" | "b") => {
+    const ids = x === "a" ? g.team_a : g.team_b;
+    const score = (x === "a" ? g.score_a : g.score_b) ?? 0;
+    return (
+      <div className={`rounded-xl p-2 text-center ${g.winner === x ? "bg-accent text-on-accent" : "bg-surface"}`}>
+        <p className="caption truncate font-medium">{ids.map((id) => byId.get(id)?.name ?? "?").join(" & ")}</p>
+        <p className="mono text-4xl font-bold tabular-nums" aria-label={`${r.team(x)}: ${score}`}>
+          {score}
+        </p>
+        {manage && (
+          <div className="mt-1 flex justify-center gap-1">
+            <Button
+              variant="tertiary"
+              aria-label={r.undoPoint(x)}
+              disabled={busy || score === 0}
+              onClick={() => run("post", `/games/${g.id}/point`, { team: x, delta: -1 })}
+            >
+              −1
+            </Button>
+            <Button
+              variant="primary"
+              aria-label={r.addPoint(x)}
+              disabled={busy || !!g.winner}
+              onClick={() => run("post", `/games/${g.id}/point`, { team: x, delta: 1 })}
+            >
+              +1
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+  return (
+    <>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        {side("a")}
+        {side("b")}
+      </div>
+      <p className="caption mt-2 font-bold" role="status">
+        {g.winner ? (
+          <span className="text-success">{r.won(g.winner)}</span>
+        ) : g.game_point.length > 0 ? (
+          <span className="text-warning">{r.matchPoint(g.game_point.map(r.team).join(" & "))}</span>
+        ) : (
+          <span className="font-normal text-muted">{r.scoreRule}</span>
+        )}
+      </p>
+    </>
   );
 }
 
@@ -429,6 +498,52 @@ function PlayerRow({ p, manage, busy, run }: { p: RotationPlayer; manage: boolea
         </div>
       )}
     </li>
+  );
+}
+
+function Leaderboard({ rows }: { rows: Rotation["leaderboard"] }) {
+  const num = "py-2 pr-3 text-right mono tabular-nums";
+  return (
+    <>
+      <h3 className="mt-6 mb-2">{r.leaderboard}</h3>
+      {rows.length === 0 ? (
+        <p className="text-muted">{r.noLeaderboard}</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="label">
+                <th scope="col" className="py-2 pr-3">{r.lbRank}</th>
+                <th scope="col" className="py-2 pr-3">{r.lbName}</th>
+                <th scope="col" className="py-2 pr-3 text-right">{r.lbGames}</th>
+                <th scope="col" className="py-2 pr-3 text-right">{r.lbWins}</th>
+                <th scope="col" className="py-2 pr-3 text-right">{r.lbLosses}</th>
+                <th scope="col" className="py-2 pr-3 text-right">{r.lbPoints}</th>
+                <th scope="col" className="py-2 text-right">{r.lbDiff}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.join_request_id} className="border-t border-border">
+                  <td className="mono py-2 pr-3 text-muted">{row.rank}</td>
+                  <th scope="row" className="py-2 pr-3 font-medium">{row.name}</th>
+                  <td className={num}>{row.games}</td>
+                  <td className={`${num} font-bold`}>{row.wins}</td>
+                  <td className={num}>{row.losses}</td>
+                  <td className={num}>
+                    {row.points_for}–{row.points_against}
+                  </td>
+                  <td className={`mono py-2 text-right tabular-nums ${row.point_diff > 0 ? "text-success" : row.point_diff < 0 ? "text-danger" : ""}`}>
+                    {row.point_diff > 0 ? `+${row.point_diff}` : row.point_diff}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <p className="caption mt-1 text-muted">{r.lbNote}</p>
+    </>
   );
 }
 

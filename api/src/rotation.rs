@@ -114,6 +114,20 @@ pub fn pick(queue: &[Cand], singles: bool, gender: &str, level: &str) -> Result<
     Ok((ids(&[chosen[0], chosen[3]]), ids(&[chosen[1], chosen[2]])))
 }
 
+/// One badminton game (BWF): 21 points, win by 2, the first to 30 wins at 29–29.
+pub fn winner(a: i32, b: i32) -> Option<&'static str> {
+    let (hi, lo, team) = if a > b { (a, b, "a") } else { (b, a, "b") };
+    (hi >= 21 && hi - lo >= 2 || hi >= 30).then_some(team)
+}
+
+/// Teams one rally from winning; at 29–29 both are.
+pub fn game_point(a: i32, b: i32) -> Vec<&'static str> {
+    if winner(a, b).is_some() {
+        return vec![];
+    }
+    [(winner(a + 1, b), "a"), (winner(a, b + 1), "b")].into_iter().filter(|(w, _)| w.is_some()).map(|(_, t)| t).collect()
+}
+
 // ---------- state ----------
 
 #[derive(sqlx::FromRow)]
@@ -205,12 +219,46 @@ impl Snap {
             .games
             .iter()
             .map(|g| {
+                let (a, b) = (g.score_a.unwrap_or(0), g.score_b.unwrap_or(0));
+                // A finished game may hold a typed-in score from a shorter format, so the higher score wins.
+                let won = match g.status.as_str() {
+                    "done" if g.score_a.is_some() && g.score_b.is_some() && a != b => Some(if a > b { "a" } else { "b" }),
+                    "playing" => winner(a, b),
+                    _ => None,
+                };
                 json!({"id": g.id, "court": g.court, "status": g.status, "team_a": g.team_a, "team_b": g.team_b,
-                       "score_a": g.score_a, "score_b": g.score_b, "started_at": g.started_at, "ended_at": g.ended_at})
+                       "score_a": g.score_a, "score_b": g.score_b, "started_at": g.started_at, "ended_at": g.ended_at,
+                       "winner": won, "game_point": if g.status == "playing" { game_point(a, b) } else { vec![] }})
             })
             .collect();
         let courts: Vec<Value> = self.courts.iter().map(|(c, g, l)| json!({"court": c, "gender_mode": g, "level_mode": l})).collect();
-        json!({"singles": self.singles, "courts": courts, "players": players, "games": games})
+        json!({"singles": self.singles, "courts": courts, "players": players, "games": games, "leaderboard": self.leaderboard()})
+    }
+
+    /// Players with finished games, ranked by wins, point difference, points scored, then name.
+    /// Games finished without a score count as played but not as a win or loss.
+    fn leaderboard(&self) -> Vec<Value> {
+        let mut rows: Vec<(&PlayerRow, i32, i32, i32, i32)> = vec![]; // player, wins, losses, points for, points against
+        for p in self.players.iter().filter(|p| p.plays > 0) {
+            let (mut w, mut l, mut pf, mut pa) = (0, 0, 0, 0);
+            for g in self.games.iter().filter(|g| g.status == "done") {
+                let (Some(a), Some(b)) = (g.score_a, g.score_b) else { continue };
+                let (own, other) = if g.team_a.contains(&p.id) { (a, b) } else if g.team_b.contains(&p.id) { (b, a) } else { continue };
+                pf += own;
+                pa += other;
+                w += (own > other) as i32;
+                l += (own < other) as i32;
+            }
+            rows.push((p, w, l, pf, pa));
+        }
+        rows.sort_by(|x, y| (y.1, y.3 - y.4, y.3).cmp(&(x.1, x.3 - x.4, x.3)).then_with(|| x.0.name.cmp(&y.0.name)));
+        rows.iter()
+            .enumerate()
+            .map(|(i, (p, w, l, pf, pa))| {
+                json!({"rank": i + 1, "join_request_id": p.id, "name": p.name, "games": p.plays, "wins": w, "losses": l,
+                       "points_for": pf, "points_against": pa, "point_diff": pf - pa})
+            })
+            .collect()
     }
 }
 
@@ -516,7 +564,8 @@ pub async fn finish(State(st): State<AppState>, m: Member, Path((id, gid)): Path
         return Err(e409("GAME_NOT_PLAYING", "Pertandingan belum dimulai atau sudah selesai"));
     }
     let ids: Vec<Uuid> = sqlx::query_scalar(
-        "UPDATE rotation_games SET status = 'done', ended_at = now(), score_a = $2, score_b = $3 WHERE id = $1 RETURNING team_a || team_b",
+        // No score given: keep the live score from the scoreboard.
+        "UPDATE rotation_games SET status = 'done', ended_at = now(), score_a = coalesce($2, score_a), score_b = coalesce($3, score_b) WHERE id = $1 RETURNING team_a || team_b",
     )
     .bind(gid)
     .bind(b.score_a)
@@ -531,6 +580,34 @@ pub async fn finish(State(st): State<AppState>, m: Member, Path((id, gid)): Path
     .bind(&ids)
     .execute(&mut *tx)
     .await?;
+    reply(tx, id).await
+}
+
+#[derive(Deserialize)]
+pub struct PointIn {
+    team: String,
+    delta: i32,
+}
+
+/// Live scoreboard: one rally to a team (delta 1) or an undo (delta -1) while the game runs.
+pub async fn point(State(st): State<AppState>, m: Member, Path((id, gid)): Path<(Uuid, Uuid)>, Json(b): Json<PointIn>) -> R<Json<Value>> {
+    if b.team != "a" && b.team != "b" {
+        return Err(invalid("team", "a atau b"));
+    }
+    if b.delta != 1 && b.delta != -1 {
+        return Err(invalid("delta", "1 atau -1"));
+    }
+    let mut tx = begin_manage(&st, &m, id).await?;
+    let (status, a, bs): (String, i32, i32) =
+        sqlx::query_as("SELECT status::text, coalesce(score_a, 0), coalesce(score_b, 0) FROM rotation_games WHERE id = $1 AND match_id = $2").bind(gid).bind(id).fetch_one(&mut *tx).await?;
+    if status != "playing" {
+        return Err(e409("GAME_NOT_PLAYING", "Skor langsung hanya untuk pertandingan yang sedang berjalan"));
+    }
+    if b.delta == 1 && winner(a, bs).is_some() {
+        return Err(e409("GAME_DECIDED", "Game sudah dimenangkan; tekan Selesai atau batalkan poin terakhir"));
+    }
+    let (na, nb) = if b.team == "a" { ((a + b.delta).max(0), bs) } else { (a, (bs + b.delta).max(0)) };
+    sqlx::query("UPDATE rotation_games SET score_a = $2, score_b = $3 WHERE id = $1").bind(gid).bind(na).bind(nb).execute(&mut *tx).await?;
     reply(tx, id).await
 }
 
@@ -578,6 +655,19 @@ mod tests {
         let queue = q(vec![c(1, 1, 30, None, 1), c(2, 1, 30, None, 1), c(3, 1, 30, None, 1), c(4, 1, 30, None, 1), c(5, 0, 5, None, 1), c(6, 0, 6, None, 1)]);
         let (a, b) = pick(&queue, false, "any", "off").unwrap();
         assert_eq!((n(&a), n(&b)), (vec![5, 2], vec![6, 1]));
+    }
+
+    #[test]
+    fn scoring_follows_bwf_rules() {
+        assert_eq!(winner(21, 19), Some("a"));
+        assert_eq!(winner(21, 20), None, "needs a 2-point lead");
+        assert_eq!(winner(20, 22), Some("b"));
+        assert_eq!(winner(30, 29), Some("a"), "30 wins outright");
+        assert_eq!(game_point(20, 15), vec!["a"]);
+        assert_eq!(game_point(20, 20), Vec::<&str>::new(), "deuce: nobody is one rally away");
+        assert_eq!(game_point(21, 20), vec!["a"]);
+        assert_eq!(game_point(29, 29), vec!["a", "b"]);
+        assert_eq!(game_point(21, 19), Vec::<&str>::new(), "already won");
     }
 
     #[test]

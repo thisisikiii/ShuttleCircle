@@ -109,6 +109,7 @@ fn router(st: AppState) -> Router {
         .route("/matches/{id}/rotation/games/{gid}", delete(rotation::clear).patch(rotation::score))
         .route("/matches/{id}/rotation/games/{gid}/start", post(rotation::start))
         .route("/matches/{id}/rotation/games/{gid}/finish", post(rotation::finish))
+        .route("/matches/{id}/rotation/games/{gid}/point", post(rotation::point))
         .route("/media/{id}/file", get(media::file))
         .route("/media/{id}", delete(media::delete))
         .route("/join-requests", get(requests::queue))
