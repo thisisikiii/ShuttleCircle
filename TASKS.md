@@ -164,4 +164,12 @@ graph LR
 - **Acceptance:** discrepancy is 0 after credits and expenses; players chart counts a new confirmed seat; the .xlsx opens with five sheets; printing shows only the dashboard; members get 403 on the finance endpoints; the sandbox checkout page confirms a held seat.
 - **Verify:** `python3 deploy/test/finance_check.py` on the sandbox; manual pass of `deploy/sandbox/README.md`.
 
+### TASK-16 — Manual Payment (QRIS, e-wallet, bank)
+- **Objective:** Payment dialog for held seats and top-ups, payment claims, Admin > Pembayaran (confirm or reject, payment details, QRIS upload), seed script for real details kept out of git.
+- **Sources:** FR-22; AC-F5-M1 to AC-F5-M5; API.md §3.7.
+- **Decisions:** DEC-024
+- **Blocked by:** TASK-07
+- **Acceptance:** a held seat is confirmed after the admin confirms the member's claim; a rejected claim adds nothing; members cannot change payment details or confirm claims; the repository contains no real account number or QRIS image.
+- **Verify:** `python3 deploy/test/payment_check.py` on the sandbox (before seeding real details).
+
 <!-- SDD_SOURCE_DOCS: api,architecture,database,decisions,design,features,prd -->

@@ -5,6 +5,7 @@ mod error;
 mod matches;
 mod media;
 mod notify;
+mod payment;
 mod payments;
 mod requests;
 mod rotation;
@@ -134,6 +135,12 @@ fn router(st: AppState) -> Router {
         .route("/expenses", get(admin::expenses).post(admin::add_expense))
         .route("/expenses/{id}", delete(admin::delete_expense))
         .route("/settings", get(admin::settings).patch(admin::update_settings))
+        .route("/settings/qris", post(payment::upload_qris).layer(DefaultBodyLimit::max(4 * 1024 * 1024)))
+        .route("/payment-info", get(payment::info))
+        .route("/payment-info/qris", get(payment::qris))
+        .route("/payment-claims", get(payment::claims).post(payment::claim))
+        .route("/payment-claims/{id}/confirm", post(payment::confirm))
+        .route("/payment-claims/{id}/reject", post(payment::reject))
         .route("/notifications", get(notify::list))
         .route("/notifications/read", post(notify::read))
         .route("/whatsapp", get(whatsapp::status))

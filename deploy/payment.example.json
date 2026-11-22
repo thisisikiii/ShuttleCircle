@@ -1,0 +1,11 @@
+{
+  "holder": "",
+  "ewallet_number": "",
+  "ewallet_names": "GoPay, DANA, ShopeePay, OVO",
+  "banks": [
+    { "bank": "BCA", "number": "" },
+    { "bank": "Mandiri", "number": "" },
+    { "bank": "BRI", "number": "" },
+    { "bank": "Jago", "number": "" }
+  ]
+}

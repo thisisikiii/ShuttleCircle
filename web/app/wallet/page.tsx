@@ -4,13 +4,14 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { FinanceDashboard } from "@/components/finance-dashboard";
 import { Ledger } from "@/components/ledger";
+import { PayDialog } from "@/components/pay-dialog";
 import { Guard } from "@/components/shell";
-import { Alert, Button, Chip, ErrorAlert, Input, PageHeader, Strip } from "@/components/ui";
-import { api, inPaymentTab, useAct } from "@/lib/api";
+import { Button, Chip, ErrorAlert, Input, PageHeader, Strip } from "@/components/ui";
+import { api, useAct } from "@/lib/api";
 import { fmtDate, fmtMonth, monthStart, rupiah } from "@/lib/format";
-import { atLeast, useFeatures } from "@/lib/session";
+import { atLeast } from "@/lib/session";
 import { t } from "@/lib/strings";
-import type { Member, Payment } from "@/lib/types";
+import type { Member } from "@/lib/types";
 
 const MIN_TOPUP_IDR = 10_000; // the configured minimum is not readable by members; the server has the last word
 
@@ -24,7 +25,6 @@ const submit = (run: () => void) => (e: FormEvent) => {
 };
 
 function Wallet({ me }: { me: Member }) {
-  const features = useFeatures();
   const balance = useQuery({
     queryKey: ["wallet"],
     queryFn: () => api.get<{ balance_idr: number }>("/wallets/me").then((r) => r.data.balance_idr),
@@ -32,16 +32,7 @@ function Wallet({ me }: { me: Member }) {
   const months = [monthStart(0), monthStart(1)];
 
   const [topupAmount, setTopupAmount] = useState("");
-  const topup = useAct(() =>
-    inPaymentTab(
-      // the payment may come bare or wrapped as {payment}
-      () =>
-        api
-          .post<Payment | { payment: Payment }>("/wallets/me/topups", { amount_idr: Number(topupAmount) })
-          .then((r) => ("payment" in r.data ? r.data.payment : r.data)),
-      (payment) => payment.redirect_url,
-    ),
-  );
+  const [topupOpen, setTopupOpen] = useState(false);
   const buyMembership = useAct((month: string) => api.post("/memberships", { month }));
   const [donation, setDonation] = useState("");
   const donate = useAct(
@@ -72,9 +63,8 @@ function Wallet({ me }: { me: Member }) {
         </section>
 
         <div className="space-y-6 divide-y divide-border *:pb-6 lg:order-last">
-          <form className="space-y-3" onSubmit={submit(() => topup.mutate())}>
+          <form className="space-y-3" onSubmit={submit(() => setTopupOpen(true))}>
             <h3>{t.wallet.topup}</h3>
-            {features?.gateway === false && <Alert tone="info">{t.pay.gatewayOff}</Alert>}
             <Input
               label={t.wallet.amountIdr}
               type="number"
@@ -84,19 +74,11 @@ function Wallet({ me }: { me: Member }) {
               onChange={(e) => setTopupAmount(e.target.value)}
               required
             />
-            {topup.isError && <ErrorAlert error={topup.error} />}
-            {topup.data && (
-              <p className="caption text-muted">
-                {t.wallet.topupPending}{" "}
-                <a href={topup.data.redirect_url} target="_blank" rel="noopener noreferrer" className="link">
-                  {t.pay.openPage}
-                </a>
-              </p>
-            )}
-            <Button type="submit" variant="primary" disabled={topup.isPending}>
+            <Button type="submit" variant="primary">
               {t.wallet.topup}
             </Button>
           </form>
+          {topupOpen && <PayDialog amount={Number(topupAmount)} onClose={() => setTopupOpen(false)} />}
 
           <section>
             <h3 className="mb-1">{t.wallet.membership}</h3>

@@ -316,14 +316,55 @@ pub struct SettingsIn {
     reward_enabled: Option<bool>,
     membership_price_idr: Option<i64>,
     min_topup_idr: Option<i64>,
+    // Manual payment details (FR-22); "" clears a text field.
+    pay_holder: Option<String>,
+    pay_ewallet_number: Option<String>,
+    pay_ewallet_names: Option<String>,
+    pay_banks: Option<Vec<BankIn>>,
 }
 
-/// Admins may flip the reward switch; prices are superadmin only (AC-F10-05).
+#[derive(Deserialize, serde::Serialize)]
+pub struct BankIn {
+    bank: String,
+    number: String,
+}
+
+/// Admins may flip the reward switch; prices and payment details are superadmin only (AC-F10-05).
 /// A membership price of 0 stops selling memberships.
 pub async fn update_settings(State(st): State<AppState>, m: Member, Json(b): Json<SettingsIn>) -> R<Json<Value>> {
     m.need(Role::Admin)?;
-    if b.membership_price_idr.is_some() || b.min_topup_idr.is_some() {
+    let pay = b.pay_holder.is_some() || b.pay_ewallet_number.is_some() || b.pay_ewallet_names.is_some() || b.pay_banks.is_some();
+    if b.membership_price_idr.is_some() || b.min_topup_idr.is_some() || pay {
         m.need(Role::Superadmin)?;
+    }
+    let digits = |s: &str| (5..=30).contains(&s.len()) && s.chars().all(|c| c.is_ascii_digit());
+    if b.pay_ewallet_number.as_deref().is_some_and(|n| !n.is_empty() && !digits(n)) {
+        return Err(invalid("pay_ewallet_number", "5 sampai 30 angka"));
+    }
+    for t in [&b.pay_holder, &b.pay_ewallet_names] {
+        if t.as_deref().is_some_and(|s| s.len() > 80) {
+            return Err(invalid("pay_holder", "Maksimal 80 karakter"));
+        }
+    }
+    if let Some(banks) = &b.pay_banks {
+        if banks.len() > 10 || banks.iter().any(|x| x.bank.trim().is_empty() || x.bank.len() > 40 || !digits(x.number.trim())) {
+            return Err(invalid("pay_banks", "Maksimal 10 rekening; nama bank wajib, nomor 5 sampai 30 angka"));
+        }
+    }
+    if pay {
+        let banks = b.pay_banks.as_ref().map(|v| json!(v.iter().map(|x| json!({"bank": x.bank.trim(), "number": x.number.trim()})).collect::<Vec<_>>()));
+        sqlx::query(
+            "UPDATE settings SET pay_holder = CASE WHEN $1::text IS NULL THEN pay_holder ELSE nullif(trim($1), '') END, \
+               pay_ewallet_number = CASE WHEN $2::text IS NULL THEN pay_ewallet_number ELSE nullif($2, '') END, \
+               pay_ewallet_names = CASE WHEN $3::text IS NULL THEN pay_ewallet_names ELSE nullif(trim($3), '') END, \
+               pay_banks = coalesce($4, pay_banks)",
+        )
+        .bind(&b.pay_holder)
+        .bind(&b.pay_ewallet_number)
+        .bind(&b.pay_ewallet_names)
+        .bind(banks)
+        .execute(&st.db)
+        .await?;
     }
     if b.membership_price_idr.is_some_and(|p| p < 0) {
         return Err(invalid("membership_price_idr", "Tidak boleh negatif"));

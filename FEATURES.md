@@ -153,6 +153,17 @@ stateDiagram-v2
 - Gateway down → the player sees a retry message; an admin manual credit (DEC-005) settles the held seat at once.
 - Player pays, and an admin also credits manually → the surplus stays in the wallet.
 
+### Manual payment (FR-22, DEC-024, added 2026-11-22)
+| ID | Criterion |
+|:---|:---|
+| AC-F5-M1 | **Bayar** on a held request and **Top-up** on the Wallet page open the payment dialog: amount, QRIS image (if set), e-wallet number and names, bank accounts with copy buttons, holder name (if set). No gateway page is opened. |
+| AC-F5-M2 | **Saya sudah bayar** creates a payment claim (`amount_idr`, `method` from the shown methods, optional note, the held request if any). At most 5 pending claims per member. All active admins and superadmins get a `payment_claim` notification. |
+| AC-F5-M3 | Admin > Pembayaran lists pending claims. **Konfirmasi** runs the manual-credit path (ledger `manual_credit` with note "Pembayaran <method> dikonfirmasi", then held seats settle from the wallet). **Tolak** changes nothing in the wallet and notifies the member. A claim is decided once (`409 ALREADY_PROCESSED`). |
+| AC-F5-M4 | Only a superadmin edits payment details: e-wallet number (5 to 30 digits), e-wallet names, up to 10 bank accounts (name required, 5 to 30 digits), holder name, and the QRIS image (JPEG, PNG or WebP by content, at most 3 MB). |
+| AC-F5-M5 | The real account numbers and QRIS image are never committed. They are loaded per site with `deploy/seed_payment.sh` from the ignored `deploy/payment.local.json` and `deploy/payment-qris.local.*` (template: `deploy/payment.example.json`), or typed in Admin > Pembayaran. |
+
+Edge case: the 30-minute hold can end before an admin confirms. The confirmed money then stays in the wallet (as with a late gateway payment, DEC-010) and the host approves again, which settles from the wallet.
+
 ## 8. F6 — Wallet, Membership, Donation
 
 ### User Stories

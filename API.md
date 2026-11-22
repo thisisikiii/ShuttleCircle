@@ -208,6 +208,21 @@ Media are fetched with the bearer header and shown through object URLs, so files
 | `GET /settings` | Admin | Read |
 | `PATCH /settings` | Admin: `reward_enabled`; Superadmin: all | Update |
 
+
+Manual payment (FR-22):
+
+| Method & path | Who | Purpose |
+|:---|:---|:---|
+| `GET /payment-info` | Member | `{qris, holder, ewallet_number, ewallet_names, banks: [{bank, number}]}` |
+| `GET /payment-info/qris` | Member | The QRIS image (`404` when not set) |
+| `POST /settings/qris` | Superadmin | Multipart `file`: JPEG, PNG or WebP, at most 3 MB; replaces the old image |
+| `PATCH /settings` | Superadmin (payment fields) | Also takes `pay_holder`, `pay_ewallet_number`, `pay_ewallet_names` (`""` clears) and `pay_banks` |
+| `POST /payment-claims` | Member | Body `{amount_idr, method, join_request_id?, note?}` → `201 {id, status: "pending"}`. `409 TOO_MANY_CLAIMS` |
+| `GET /payment-claims?status=` | Member (own), Admin (all) | Newest first, 100 max; admins default to `pending`, `status=all` for every claim |
+| `POST /payment-claims/{id}/confirm` | Admin | Credits the wallet and settles held seats (AC-F5-M3) |
+| `POST /payment-claims/{id}/reject` | Admin | Notifies the member |
+
+The Midtrans endpoints (`/join-requests/{id}/pay`, `/wallets/me/topups`, `/webhooks/midtrans`) remain in the API but the web app no longer calls them (DEC-024).
 ### 3.8 Notifications & health
 
 | Method & path | Who | Purpose |

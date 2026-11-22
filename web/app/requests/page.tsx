@@ -2,16 +2,16 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useState } from "react";
 import { Countdown } from "@/components/countdown";
-import { Alert, Button, Chip, Empty, ErrorAlert, Load, PageHeader, buttonClass } from "@/components/ui";
-import { api, inPaymentTab, useAct } from "@/lib/api";
+import { PayDialog } from "@/components/pay-dialog";
+import { Button, Chip, Empty, ErrorAlert, Load, PageHeader, buttonClass } from "@/components/ui";
+import { api, useAct } from "@/lib/api";
 import { fmtDateTime, rupiah } from "@/lib/format";
-import { useFeatures } from "@/lib/session";
 import { t } from "@/lib/strings";
-import type { JoinRequest, PayResult } from "@/lib/types";
+import type { JoinRequest } from "@/lib/types";
 
 export default function RequestsPage() {
-  const features = useFeatures();
   const q = useQuery({
     queryKey: ["my-requests"],
     queryFn: () => api.get<JoinRequest[]>("/me/join-requests").then((r) => r.data),
@@ -20,12 +20,7 @@ export default function RequestsPage() {
       query.state.data?.some((r) => r.status === "awaiting_payment") ? 5_000 : 30_000,
   });
   const withdraw = useAct((id: string) => api.post(`/join-requests/${id}/cancel`));
-  const pay = useAct((id: string) =>
-    inPaymentTab(
-      () => api.post<PayResult>(`/join-requests/${id}/pay`).then((r) => r.data),
-      (r) => (r.status === "awaiting_payment" ? r.payment.redirect_url : undefined),
-    ),
-  );
+  const [paying, setPaying] = useState<JoinRequest | null>(null);
 
   return (
     <>
@@ -48,9 +43,6 @@ export default function RequestsPage() {
           }
           return (
             <>
-              {features?.gateway === false && held.some((r) => !r.conversion_required) && (
-                <Alert tone="info">{t.pay.gatewayOff}</Alert>
-              )}
               {withdraw.isError && <ErrorAlert error={withdraw.error} />}
               <ul>
                 {requests.map((r) => (
@@ -97,27 +89,9 @@ export default function RequestsPage() {
                             </div>
                           </div>
                         ) : (
-                          <Button variant="primary" disabled={pay.isPending} onClick={() => pay.mutate(r.id)}>
+                          <Button variant="primary" onClick={() => setPaying(r)}>
                             {t.requests.payNow}
                           </Button>
-                        )}
-                        {pay.variables === r.id && pay.isError && (
-                          <div className="w-full">
-                            <ErrorAlert error={pay.error} onRetry={() => pay.mutate(r.id)} />
-                          </div>
-                        )}
-                        {pay.variables === r.id && pay.data?.status === "awaiting_payment" && (
-                          <p className="caption w-full text-muted">
-                            {t.pay.waiting}{" "}
-                            <a
-                              href={pay.data.payment.redirect_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="link"
-                            >
-                              {t.pay.openPage}
-                            </a>
-                          </p>
                         )}
                       </div>
                     )}
@@ -137,6 +111,7 @@ export default function RequestsPage() {
               </ul>
               {/* room for the fixed payment bar on phones */}
               {held.length > 0 && <div className="h-40 md:hidden" />}
+              {paying && <PayDialog amount={paying.price_idr} joinRequestId={paying.id} onClose={() => setPaying(null)} />}
             </>
           );
         }}

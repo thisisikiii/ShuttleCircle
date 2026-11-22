@@ -109,8 +109,6 @@ export type Rotation = {
 
 export type MatchDetail = Match &{ roster?: RosterEntry[]; requests?: JoinRequest[]; can_manage?: boolean };
 
-export type Payment = { id: string; amount_idr: number; redirect_url: string; expires_at: string };
-export type PayResult = { status: "confirmed" } | { status: "awaiting_payment"; payment: Payment };
 
 export type LedgerEntry = {
   id: string;
@@ -161,4 +159,27 @@ export type Expense = {
   spent_on: string;
   note: string | null;
 };
-export type Settings = { reward_enabled: boolean; membership_price_idr: number | null; min_topup_idr: number };
+export type Bank = { bank: string; number: string };
+export type Settings = {
+  reward_enabled: boolean;
+  membership_price_idr: number | null;
+  min_topup_idr: number;
+  pay_qris_path: string | null;
+  pay_holder: string | null;
+  pay_ewallet_number: string | null;
+  pay_ewallet_names: string | null;
+  pay_banks: Bank[];
+};
+export type PaymentInfo = { qris: boolean; holder: string | null; ewallet_number: string | null; ewallet_names: string | null; banks: Bank[] };
+export type PaymentClaim = {
+  id: string;
+  user: { id: string; full_name: string; email: string };
+  join_request_id: string | null;
+  match_title: string | null;
+  amount_idr: number;
+  method: string;
+  note: string | null;
+  status: "pending" | "confirmed" | "rejected";
+  created_at: string;
+  decided_at: string | null;
+};

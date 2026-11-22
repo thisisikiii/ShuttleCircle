@@ -3,3 +3,7 @@ target/
 node_modules/
 .next/
 *.part
+
+# Real payment details (account numbers, QRIS image): kept out of git, seeded into each site with deploy/seed_payment.sh
+deploy/payment.local.json
+deploy/payment-qris.local.*

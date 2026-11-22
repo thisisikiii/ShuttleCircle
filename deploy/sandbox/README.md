@@ -7,10 +7,10 @@ database and secrets. Nothing you do there touches production.
 
 | | Sandbox | Production |
 |:---|:---|:---|
-| Payments | Fake Midtrans: a checkout page with **Bayar (simulasi berhasil)**, **Biarkan kedaluwarsa** and **Tolak pembayaran** | Real Midtrans (once keys are set) |
+| Payments | Manual (QRIS, e-wallet, bank) with your real details; nothing is charged unless you actually transfer | Same |
 | Email | Off (no real emails) | Brevo |
 | WhatsApp | Off | Club number |
-| Memory cap | api 128 MB, web 256 MB, db 256 MB, caddy 64 MB, stub 48 MB | none |
+| Memory cap | api 128 MB, web 256 MB, db 256 MB, caddy 64 MB | none |
 | Rate limit | 200 requests per minute | 10 per minute |
 
 ## Release flow
@@ -23,7 +23,7 @@ database and secrets. Nothing you do there touches production.
 
 - **Members:** open the site in a private window and register a few accounts (one per window). Make one admin in Admin > Anggota.
 - **Matches:** create a match, request to join as a member, approve as host or admin.
-- **Payment:** with an empty wallet, approval holds the seat; tap **Bayar**, which opens the sandbox checkout page, then tap **Bayar (simulasi berhasil)**. The seat becomes confirmed. Try **Biarkan kedaluwarsa** on another request.
+- **Payment:** with an empty wallet, approval holds the seat; tap **Bayar**, see the QRIS and accounts, tap **Saya sudah bayar**. As admin, open Admin > Pembayaran and tap **Konfirmasi**: the seat becomes confirmed. Try **Tolak** on a top-up claim.
 - **Wallet:** Admin credits cash to a member (manual credit), the member buys a membership or donates.
 - **Income and expenses:** Admin > Keuangan: add and delete expenses; check the Wallet page dashboard follows.
 - **Court rotation:** on a match page, mark players arrived, fill courts, start a game, score it with +1, finish it, check the leaderboard.
@@ -37,4 +37,6 @@ database and secrets. Nothing you do there touches production.
 
 The `.env` there sets `COMPOSE_PROJECT_NAME=scdev`, `COMPOSE_FILE=compose.yaml:sandbox/compose.sandbox.yaml`,
 `API_IMAGE=scdev-api`, `WEB_IMAGE=scdev-web` (so sandbox builds never replace the production images), `HTTP_PORT=8091`
-and a made-up `MIDTRANS_SERVER_KEY` that only the fake checkout page uses. Never put a real Midtrans key in the sandbox.
+and an empty `MIDTRANS_SERVER_KEY` (payment is manual).
+
+Payment details: `sh seed_payment.sh payment.local.json payment-qris.local.webp` loads them from the ignored local files (template `../payment.example.json`); Admin > Pembayaran edits them.

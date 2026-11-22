@@ -79,15 +79,22 @@ pub async fn credit(State(st): State<AppState>, m: Member, Path(user): Path<Uuid
     }
     let note = b.note()?;
     let mut tx = st.db.begin().await?;
-    let held = settle::held(&mut *tx, user).await?;
-    let (txn, _) = settle::ledger(&mut *tx, user, b.amount_idr, "manual_credit", None, None, Some(note), Some(m.id)).await?.ok_or_else(e404)?;
-    notify(&mut *tx, user, "manual_credit", "Saldo ditambahkan admin", &format!("Dompetmu dikredit Rp {}.", b.amount_idr)).await?;
-    for h in held {
-        settle::settle(&mut *tx, h, false).await?;
-    }
-    let bal: i64 = sqlx::query_scalar("SELECT balance_idr FROM wallets WHERE user_id = $1").bind(user).fetch_one(&mut *tx).await?;
+    let (txn, bal) = credit_in(&mut *tx, user, b.amount_idr, note, m.id).await?;
     tx.commit().await?;
     Ok((StatusCode::CREATED, ok(json!({"txn_id": txn, "amount_idr": b.amount_idr, "created_by": m.id, "balance_idr": bal}))))
+}
+
+/// Credits money received outside the app, then settles the member's held seats from it.
+/// Shared by manual credit and confirmed payment claims. Returns (ledger row, new balance).
+pub async fn credit_in(c: &mut sqlx::PgConnection, user: Uuid, amount: i64, note: &str, actor: Uuid) -> R<(Uuid, i64)> {
+    let held = settle::held(&mut *c, user).await?;
+    let (txn, _) = settle::ledger(&mut *c, user, amount, "manual_credit", None, None, Some(note), Some(actor)).await?.ok_or_else(e404)?;
+    notify(&mut *c, user, "manual_credit", "Saldo ditambahkan admin", &format!("Dompetmu dikredit Rp {amount}.")).await?;
+    for h in held {
+        settle::settle(&mut *c, h, false).await?;
+    }
+    let bal: i64 = sqlx::query_scalar("SELECT balance_idr FROM wallets WHERE user_id = $1").bind(user).fetch_one(&mut *c).await?;
+    Ok((txn, bal))
 }
 
 /// Signed correction by a superadmin; the ledger itself is never edited (AC-F6-05).

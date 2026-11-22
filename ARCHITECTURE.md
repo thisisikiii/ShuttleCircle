@@ -90,7 +90,7 @@ The API reports which optional features are configured through `GET /api/v1/heal
 
 ### Sandbox (DEC-022)
 
-`deploy/sandbox/` holds the overlay for the dev copy at https://dev.shuttlecircle.personifinn.site: run with `COMPOSE_FILE=compose.yaml:sandbox/compose.sandbox.yaml` and its own `.env`. It replaces the Caddyfile with one that also routes `/sandbox-pay/*` to the fake checkout (`sandbox/pay_stub.py`).
+`deploy/sandbox/` holds the overlay for the dev copy at https://dev.shuttlecircle.personifinn.site: run with `COMPOSE_FILE=compose.yaml:sandbox/compose.sandbox.yaml` and its own `.env`. It only caps memory; email, WhatsApp and Midtrans stay unset. Payment details are seeded with `deploy/seed_payment.sh` (FR-22).
 
 ### Build and release (DEC-018)
 

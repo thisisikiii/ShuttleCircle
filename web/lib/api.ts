@@ -111,23 +111,3 @@ export function useAct<V = void, R = unknown>(fn: (v: V) => Promise<R>, onDone?:
     },
   });
 }
-
-/**
- * Opens the gateway page in a new tab. The tab is created before the request,
- * because browsers block a window opened after an await.
- */
-export async function inPaymentTab<R>(run: () => Promise<R>, urlOf: (r: R) => string | undefined) {
-  const tab = window.open("", "_blank");
-  try {
-    const result = await run();
-    const url = urlOf(result);
-    if (tab && url) {
-      tab.opener = null;
-      tab.location.href = url;
-    } else tab?.close();
-    return result;
-  } catch (e) {
-    tab?.close();
-    throw e;
-  }
-}

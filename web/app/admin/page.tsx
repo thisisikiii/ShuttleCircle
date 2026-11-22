@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { InviteForm } from "@/components/invite";
 import { Ledger } from "@/components/ledger";
+import { PaymentsTab } from "@/components/payment-admin";
 import { Guard } from "@/components/shell";
 import { Alert, Button, Checkbox, Chip, DataTable, Empty, ErrorAlert, Input, Load, LoadMore, PageHeader, Select, Strip } from "@/components/ui";
 import { api, fieldErrors, useAct, usePaged } from "@/lib/api";
@@ -12,7 +13,7 @@ import { atLeast } from "@/lib/session";
 import { t } from "@/lib/strings";
 import type { Expense, ExpenseCategory, FinanceSummary, Member, Role, Settings, User } from "@/lib/types";
 
-const TABS = ["finance", "members", "invite", "whatsapp", "settings"] as const;
+const TABS = ["finance", "payments", "members", "invite", "whatsapp", "settings"] as const;
 
 const submit = (run: () => void) => (e: FormEvent) => {
   e.preventDefault();
@@ -44,6 +45,7 @@ function Admin({ me }: { me: Member }) {
       </div>
       <div role="tabpanel">
         {tab === "finance" && <Finance isSuper={isSuper} />}
+        {tab === "payments" && <PaymentsTab isSuper={isSuper} />}
         {tab === "members" && <Members isSuper={isSuper} selfId={me.id} />}
         {tab === "invite" && <InviteForm />}
         {tab === "whatsapp" && <WhatsApp />}

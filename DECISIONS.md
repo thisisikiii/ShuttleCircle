@@ -166,7 +166,7 @@ This document records the selected answers and supplied text. `Answered` means a
 
 **Status:** Requested by the owner on 2026-11-20 (FR-21)
 
-**Default:** A second, smaller stack on the same box (`~/shuttlecircle-dev`, Compose project `scdev`, port 8091) behind https://dev.shuttlecircle.personifinn.site, through the same Cloudflare Worker as production. It uses `deploy/sandbox/compose.sandbox.yaml`: memory caps, a fake Midtrans with a clickable checkout page, no email, no WhatsApp, its own database and secrets, and its own image names so a sandbox build never replaces production images. Releases go to the sandbox first and to production only after the owner has tested them by hand. See `deploy/sandbox/README.md`.
+**Default:** A second, smaller stack on the same box (`~/shuttlecircle-dev`, Compose project `scdev`, port 8091) behind https://dev.shuttlecircle.personifinn.site, through the same Cloudflare Worker as production. It uses `deploy/sandbox/compose.sandbox.yaml`: memory caps, manual payment like production (the fake Midtrans checkout was removed on 2026-11-22, DEC-024), no email, no WhatsApp, its own database and secrets, and its own image names so a sandbox build never replaces production images. Releases go to the sandbox first and to production only after the owner has tested them by hand. See `deploy/sandbox/README.md`.
 
 **Why:** The owner tests every feature manually before members see it, without real money, emails or WhatsApp messages.
 
@@ -177,6 +177,16 @@ This document records the selected answers and supplied text. `Answered` means a
 **Default:** On the Wallet page, for admins only. Charts are inline SVG (no chart library). Excel is built by the API with `rust_xlsxwriter`; PDF is the browser's print of the dashboard (Save as PDF), so no PDF library is added.
 
 **Smaller option not taken:** CSV instead of .xlsx.
+
+## DEC-024 — Manual payment instead of Midtrans
+
+**Status:** Requested by the owner on 2026-11-22 (FR-22)
+
+**Default:** The app shows the club's static QRIS, e-wallet number and bank accounts; the member claims the payment and an admin confirms it after checking the statement, through the existing manual-credit path. The account details are data in each site's database, entered by a superadmin or seeded from an ignored local file, so the public repository holds only empty, fillable fields. The Midtrans code stays in the API, unused by the web app, so it can be switched back on later.
+
+**Why:** No payment-gateway account or fees; the club already receives QRIS, e-wallet and bank transfers.
+
+**Not included:** automatic matching of bank statements, proof-of-payment upload.
 
 ---
 
