@@ -131,7 +131,7 @@ function Account({ label, number }: { label: string; number: string }) {
 
 /** The QRIS image needs the bearer header, so it is fetched as a blob. */
 export function Qris({ version = 0 }: { version?: number }) {
-  const [url, setUrl] = useState<string>();
+  const [img, setImg] = useState<{ url: string; blob: Blob }>();
   useEffect(() => {
     let objectUrl: string | undefined;
     let cancelled = false;
@@ -139,13 +139,41 @@ export function Qris({ version = 0 }: { version?: number }) {
       .then((blob) => {
         if (cancelled) return;
         objectUrl = URL.createObjectURL(blob);
-        setUrl(objectUrl);
+        setImg({ url: objectUrl, blob });
       })
-      .catch(() => setUrl(undefined));
+      .catch(() => setImg(undefined));
     return () => {
       cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [version]);
-  return url ? <img src={url} alt={p.qrisAlt} className="mx-auto w-full max-w-64 rounded-xl bg-white" /> : null;
+  if (!img) return null;
+
+  const save = async () => {
+    const name = `qris-shuttlecircle.${img.blob.type.split("/")[1] || "png"}`;
+    const file = new File([img.blob], name, { type: img.blob.type });
+    // iOS saves downloads to Files, not Photos; its share sheet has "Save Image". Android downloads show in the gallery.
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    if (ios && navigator.canShare?.({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file] });
+        return;
+      } catch (e) {
+        if ((e as Error).name === "AbortError") return;
+      }
+    }
+    const a = document.createElement("a");
+    a.href = img.url;
+    a.download = name;
+    a.click();
+  };
+
+  return (
+    <div className="space-y-2 text-center">
+      <img src={img.url} alt={p.qrisAlt} className="mx-auto w-full max-w-64 rounded-xl bg-white" />
+      <Button onClick={save}>
+        {p.saveQr}
+      </Button>
+    </div>
+  );
 }

@@ -386,6 +386,7 @@ export const t = {
     steps: "Bayar lewat salah satu cara di bawah dengan jumlah persis, lalu tekan Saya sudah bayar. Admin mengecek mutasi dan mengonfirmasi.",
     qris: "QRIS (semua bank dan e-wallet)",
     qrisAlt: "Kode QRIS klub untuk pembayaran",
+    saveQr: "Simpan QR ke galeri",
     ewallet: (names: string) => `E-wallet: ${names}`,
     ewalletDefault: "E-wallet",
     banks: "Transfer bank",
