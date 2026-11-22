@@ -241,21 +241,21 @@ All paths are under `/matches/{id}/rotation`. `GET` is open to any signed-in mem
 | Method & path | Purpose |
 |:---|:---|
 | `GET /matches/{id}/rotation` | The board |
-| `PATCH /matches/{id}/rotation` | Body `{courts?: 1..20, singles?: bool}`. `409 COURT_BUSY` when removing a court with an open turn, or changing format while any turn is open |
+| `PATCH /matches/{id}/rotation` | Body `{courts?: 1..20, singles?: bool, best_of?: 1\|3\|5, points?: 1..99, cap?: points..99}` (scoring format for games started from now on, AC-F11-15). `409 COURT_BUSY` when removing a court with an open turn, or changing format while any turn is open |
 | `PATCH /matches/{id}/rotation/courts/{court}` | Body `{gender_mode?: any\|mixed\|men\|women, level_mode?: off\|balanced\|mixed}` |
 | `POST /matches/{id}/rotation/players` | Body `{join_request_ids: [], state: waiting\|resting\|left\|absent}`. `waiting` = arrived or back from rest. `409 PLAYER_ON_COURT`, `409 PLAYER_HAS_GAMES` (for `absent`) |
 | `PATCH /matches/{id}/rotation/players/{join_request_id}` | Body `{gender?: "M"\|"F"\|"", level?: 0..3}`; `""` and `0` clear. `409 PLAYER_NOT_ARRIVED` |
 | `POST /matches/{id}/rotation/courts/{court}/next` | Sets the court's next turn, replacing any earlier one. No body: picked by the rules (`409 NOT_ENOUGH_PLAYERS`). Body `{team_a: [], team_b: []}`: chosen by hand from waiting players |
 | `DELETE /matches/{id}/rotation/games/{game_id}` | Clears a next turn. `409 GAME_STARTED` |
 | `POST /matches/{id}/rotation/games/{game_id}/start` | Next turn → running. `409 COURT_BUSY` while the court's game runs |
-| `POST /matches/{id}/rotation/games/{game_id}/point` | Body `{team: "a"\|"b", delta: 1\|-1}`. Live score of a running game (AC-F11-13). `409 GAME_NOT_PLAYING`, `409 GAME_DECIDED` |
-| `POST /matches/{id}/rotation/games/{game_id}/finish` | Optional body `{score_a, score_b}`; a missing score keeps the live one. Running → done; updates `games_played` (AC-F11-09) |
-| `PATCH /matches/{id}/rotation/games/{game_id}` | Body `{score_a, score_b}` for a finished game. `409 GAME_NOT_DONE` |
+| `POST /matches/{id}/rotation/games/{game_id}/point` | Body `{team: "a"\|"b", delta: 1\|-1}`. Live score of a running game (AC-F11-13, AC-F11-16); a won set moves into `sets`. `409 GAME_NOT_PLAYING`, `409 GAME_DECIDED` |
+| `POST /matches/{id}/rotation/games/{game_id}/finish` | Optional body `{sets: [[a, b], …]}` (the whole result) or `{score_a, score_b}` (the set in play); no body keeps the live score, and a set in progress is recorded as it stands. Running → done; updates `games_played` (AC-F11-09) |
+| `PATCH /matches/{id}/rotation/games/{game_id}` | Body `{sets: [[a, b], …]}` (at most 5 sets, 0 to 99 points) or `{score_a, score_b}` for a finished game; empty clears the result. `409 GAME_NOT_DONE` |
 
 Board:
 ```json
 {
-  "singles": false,
+  "singles": false, "best_of": 1, "points": 21, "cap": 30,
   "courts": [{ "court": 1, "gender_mode": "any", "level_mode": "off" }],
   "players": [{
     "join_request_id": "…", "name": "Sari", "state": "waiting",

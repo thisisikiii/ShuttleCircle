@@ -172,4 +172,12 @@ graph LR
 - **Acceptance:** a held seat is confirmed after the admin confirms the member's claim; a rejected claim adds nothing; members cannot change payment details or confirm claims; the repository contains no real account number or QRIS image.
 - **Verify:** `python3 deploy/test/payment_check.py` on the sandbox (before seeding real details).
 
+### TASK-17 — Scoring Format and Full-Screen Counter
+- **Objective:** Per-match scoring format (sets, points per set, maximum points), set-by-set live score and results, blue/red full-screen tap counter with Simpan hasil.
+- **Sources:** FR-23; AC-F11-15 to AC-F11-17; API.md §3.9; DATABASE.md migration `0005_scoring_format.sql`.
+- **Decisions:** DEC-025
+- **Blocked by:** TASK-14
+- **Acceptance:** best of 3 to 11 without deuce is won 2 sets to 1 by taps alone; a running game keeps its format when the match format changes; −1 at 0–0 reopens the last set; the saved result keeps every set and the leaderboard adds all their points; the full screen fits a phone in portrait and landscape.
+- **Verify:** `cargo test`; `python3 deploy/test/rotation_check.py` and `node deploy/test/ui_rotation.cjs` on the sandbox.
+
 <!-- SDD_SOURCE_DOCS: api,architecture,database,decisions,design,features,prd -->

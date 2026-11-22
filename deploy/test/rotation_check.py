@@ -207,6 +207,52 @@ check((eko["rank"], eko["games"], eko["wins"], eko["losses"], eko["points_for"],
 check(next(r for r in lb if r["name"] == "Citra")["point_diff"] == -2, "loser gets a negative difference")
 check(board(outsider)["leaderboard"] == lb, "members see the same leaderboard")
 
+print("9b. scoring format: sets and points per set (AC-F11-15 to AC-F11-17)")
+check(err(players[0].call("PATCH", R, {"best_of": 3}))[0] == 403, "member cannot change the scoring format")
+check(err(host.call("PATCH", R, {"best_of": 2}))[0] == 422, "best of 2 rejected")
+check(err(host.call("PATCH", R, {"points": 21, "cap": 15}))[0] == 422, "cap below points rejected")
+b = host.data("PATCH", R, {"best_of": 3, "points": 11, "cap": 11})
+check((b["best_of"], b["points"], b["cap"]) == (3, 11, 11), "format saved: best of 3, 11 points, no deuce")
+g3 = game(b, 1, "next")["id"]
+host.data("POST", f"{R}/games/{g3}/start")
+b = host.data("PATCH", R, {"best_of": 1, "points": 21, "cap": 30})
+P3 = f"{R}/games/{g3}/point"
+G3 = lambda b: next(x for x in b["games"] if x["id"] == g3)
+check((G3(b)["best_of"], G3(b)["points"], G3(b)["cap"]) == (3, 11, 11), "a running game keeps the format it started with")
+for t, n in [("a", 10), ("b", 10)]:
+    for _ in range(n):
+        b = host.data("POST", P3, {"team": t, "delta": 1})
+check((G3(b)["game_point"], G3(b)["match_point"]) == (["a", "b"], []), "10-10 without deuce: both on game point, nobody on match point", str(G3(b)))
+b = host.data("POST", P3, {"team": "a", "delta": 1})
+g = G3(b)
+check((g["sets"], g["score_a"], g["score_b"], g["sets_won"], g["winner"]) == ([[11, 10]], 0, 0, [1, 0], None), "11-10 wins set 1; set 2 starts at 0-0", str(g))
+for _ in range(11):
+    b = host.data("POST", P3, {"team": "b", "delta": 1})
+for t in ["a", "b"] * 10:
+    b = host.data("POST", P3, {"team": t, "delta": 1})
+g = G3(b)
+check((g["sets_won"], g["match_point"]) == ([1, 1], ["a", "b"]), "one set each, 10-10 in set 3: both on match point", str(g))
+b = host.data("POST", P3, {"team": "b", "delta": 1})
+check((G3(b)["winner"], G3(b)["sets_won"]) == ("b", [1, 2]), "set 3 decides the game")
+check(err(host.call("POST", P3, {"team": "a", "delta": 1})) == (409, "GAME_DECIDED"), "no points after the game is won")
+b = host.data("POST", P3, {"team": "b", "delta": -1})
+g = G3(b)
+check((g["winner"], g["score_a"], g["score_b"], len(g["sets"])) == (None, 10, 10, 2), "undo at 0-0 reopens the last set", str(g))
+b = host.data("POST", P3, {"team": "b", "delta": 1})
+loser = G3(b)["team_a"][0]
+row = lambda b: next((r for r in b["leaderboard"] if r["join_request_id"] == loser), {"games": 0, "points_for": 0, "losses": 0})
+before = row(b)
+b = host.data("POST", f"{R}/games/{g3}/finish")
+g = G3(b)
+check((g["status"], g["sets"], g["score_a"], g["winner"]) == ("done", [[11, 10], [0, 11], [10, 11]], None, "b"), "saved result keeps every set", str(g))
+after = row(b)
+check((after["games"] - before["games"], after["points_for"] - before["points_for"], after["losses"] - before["losses"]) == (1, 21, 1),
+      "leaderboard: one more game and loss, points of all three sets (11 + 0 + 10)", str((before, after)))
+check(err(host.call("PATCH", f"{R}/games/{g3}", {"sets": [[11, -1]]}))[0] == 422, "negative set score rejected")
+check(err(host.call("PATCH", f"{R}/games/{g3}", {"sets": [[1, 0]] * 6}))[0] == 422, "more than 5 sets rejected")
+b = host.data("PATCH", f"{R}/games/{g3}", {"sets": [[11, 5], [11, 7]]})
+check((G3(b)["sets"], G3(b)["winner"]) == ([[11, 5], [11, 7]], "a"), "result edited set by set")
+
 print("10. cancelled match is closed")
 root.data("POST", f"/matches/{m}/cancel")
 check(err(host.call("POST", f"{R}/courts/2/next")) == (409, "MATCH_NOT_OPEN"), "no changes after cancellation")

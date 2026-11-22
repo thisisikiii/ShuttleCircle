@@ -303,6 +303,10 @@ CREATE UNIQUE INDEX rotation_games_one_playing ON rotation_games(match_id, court
 
 Games played and minutes played are counted from `done` games, never stored on the player. The live score of a running game is kept in `score_a` and `score_b`; the leaderboard is computed from finished games and has no table. Gender and level are per match, set by the host on the board; they are not part of the user profile.
 
+### Scoring format (migration `0005_scoring_format.sql`, FR-23)
+
+`matches` gains `rotation_best_of` (1, 3 or 5), `rotation_points` (1 to 99) and `rotation_cap` (points to 99; equal to points = no deuce); defaults 1, 21, 30. `rotation_games` gains `best_of`, `points` and `cap` (copied from the match when the game starts) and `sets` (`jsonb`, finished sets as `[[a, b], …]`). While a game runs, `score_a` and `score_b` hold the set in play; a finished game keeps its whole result in `sets` with both scores null. Games finished before this migration keep their single score in `score_a` and `score_b`, and are read as a one-set result.
+
 ### Manual payment (migration `0004_manual_payment.sql`, FR-22)
 
 `settings` gains `pay_qris_path` (file in the media volume), `pay_holder`, `pay_ewallet_number`, `pay_ewallet_names` and `pay_banks` (`jsonb`, `[{bank, number}]`). New table `payment_claims(id, user_id, join_request_id, amount_idr, method, note, status pending|confirmed|rejected, decided_by, wallet_txn_id, created_at, decided_at)`; a confirmed claim points at the `manual_credit` ledger row it created.

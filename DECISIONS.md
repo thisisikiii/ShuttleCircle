@@ -188,6 +188,14 @@ This document records the selected answers and supplied text. `Answered` means a
 
 **Not included:** automatic matching of bank statements, proof-of-payment upload.
 
+## DEC-025 — Scoring format and full-screen counter
+
+**Status:** Requested by the owner on 2026-11-22 (FR-23)
+
+**Default:** The format (sets per game, points per set, maximum points) is set per match on the rotation board, because one session usually plays one format; each game copies it when it starts. Team A is blue and team B is red everywhere. The full-screen counter is a screen of the existing board, not a new page, and uses the same point endpoint, so every phone shows the same score. Points are saved on the server one tap at a time (no offline counting); the board polls every 3 seconds while a game runs.
+
+**Not included:** switching ends between sets, service court and server indicator, a format per court or per game, offline scoring.
+
 ---
 
 ## Inputs still required from the owner

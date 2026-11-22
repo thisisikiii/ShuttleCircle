@@ -87,6 +87,13 @@ export type RotationGame = {
   ended_at: string | null;
   winner: "a" | "b" | null;
   game_point: ("a" | "b")[];
+  match_point: ("a" | "b")[];
+  /** Finished sets [a, b]; for a finished game, its whole result. */
+  sets: [number, number][];
+  sets_won: [number, number];
+  best_of: number;
+  points: number;
+  cap: number;
 };
 export type LeaderboardRow = {
   rank: number;
@@ -101,6 +108,9 @@ export type LeaderboardRow = {
 };
 export type Rotation = {
   singles: boolean;
+  best_of: number;
+  points: number;
+  cap: number;
   courts: { court: number; gender_mode: GenderMode; level_mode: LevelMode }[];
   players: RotationPlayer[];
   games: RotationGame[];

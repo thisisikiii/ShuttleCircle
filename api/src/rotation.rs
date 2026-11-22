@@ -114,18 +114,71 @@ pub fn pick(queue: &[Cand], singles: bool, gender: &str, level: &str) -> Result<
     Ok((ids(&[chosen[0], chosen[3]]), ids(&[chosen[1], chosen[2]])))
 }
 
-/// One badminton game (BWF): 21 points, win by 2, the first to 30 wins at 29–29.
-pub fn winner(a: i32, b: i32) -> Option<&'static str> {
-    let (hi, lo, team) = if a > b { (a, b, "a") } else { (b, a, "b") };
-    (hi >= 21 && hi - lo >= 2 || hi >= 30).then_some(team)
+/// Scoring format of a game: best of 1, 3 or 5 sets; a set is won at `points` with a 2-point lead,
+/// or outright at `cap` (cap = points means no deuce). BWF is 3 sets of 21 capped at 30.
+#[derive(Clone, Copy, Debug)]
+pub struct Fmt {
+    pub best_of: i32,
+    pub points: i32,
+    pub cap: i32,
 }
 
-/// Teams one rally from winning; at 29–29 both are.
-pub fn game_point(a: i32, b: i32) -> Vec<&'static str> {
-    if winner(a, b).is_some() {
+pub type Sets = Vec<[i32; 2]>;
+
+/// Winner of one set, if it is over.
+pub fn set_winner(f: Fmt, a: i32, b: i32) -> Option<&'static str> {
+    let (hi, lo, team) = if a > b { (a, b, "a") } else { (b, a, "b") };
+    (hi >= f.points && hi - lo >= 2 || hi >= f.cap).then_some(team)
+}
+
+/// Sets won by each team; the higher score takes a set (finished results may be typed in by hand).
+pub fn sets_won(sets: &[[i32; 2]]) -> [i32; 2] {
+    sets.iter().fold([0, 0], |[x, y], [a, b]| [x + (a > b) as i32, y + (b > a) as i32])
+}
+
+/// The team that has won the majority of sets, if any.
+pub fn match_winner(f: Fmt, sets: &[[i32; 2]]) -> Option<&'static str> {
+    let need = f.best_of / 2 + 1;
+    let [x, y] = sets_won(sets);
+    (x >= need).then_some("a").or((y >= need).then_some("b"))
+}
+
+/// Teams one rally from winning the current set; at 29–29 (cap 30) both are.
+pub fn game_point(f: Fmt, a: i32, b: i32) -> Vec<&'static str> {
+    if set_winner(f, a, b).is_some() {
         return vec![];
     }
-    [(winner(a + 1, b), "a"), (winner(a, b + 1), "b")].into_iter().filter(|(w, _)| w.is_some()).map(|(_, t)| t).collect()
+    [(set_winner(f, a + 1, b), "a"), (set_winner(f, a, b + 1), "b")].into_iter().filter(|(w, _)| w.is_some()).map(|(_, t)| t).collect()
+}
+
+/// Teams one rally from winning the whole game.
+pub fn match_point(f: Fmt, sets: &[[i32; 2]], a: i32, b: i32) -> Vec<&'static str> {
+    let need = f.best_of / 2 + 1;
+    let won = sets_won(sets);
+    game_point(f, a, b).into_iter().filter(|t| won[(*t == "b") as usize] + 1 >= need).collect()
+}
+
+/// One rally (delta 1) or an undo (delta -1) for team 0 (A) or 1 (B). A won set moves into `sets`
+/// and the next set starts at 0–0; an undo at 0–0 reopens the last set. Errs once the game is won.
+pub fn rally(f: Fmt, sets: &mut Sets, cur: &mut [i32; 2], team: usize, delta: i32) -> Result<(), ()> {
+    if delta > 0 {
+        if match_winner(f, sets).is_some() {
+            return Err(());
+        }
+        cur[team] += 1;
+    } else {
+        if *cur == [0, 0] {
+            if let Some(last) = sets.pop() {
+                *cur = last;
+            }
+        }
+        cur[team] = (cur[team] - 1).max(0);
+    }
+    if set_winner(f, cur[0], cur[1]).is_some() {
+        sets.push(*cur);
+        *cur = [0, 0];
+    }
+    Ok(())
 }
 
 // ---------- state ----------
@@ -155,10 +208,28 @@ struct GameRow {
     score_b: Option<i32>,
     started_at: Option<DateTime<Utc>>,
     ended_at: Option<DateTime<Utc>>,
+    best_of: i32,
+    points: i32,
+    cap: i32,
+    sets: sqlx::types::Json<Sets>,
+}
+
+impl GameRow {
+    fn fmt(&self) -> Fmt {
+        Fmt { best_of: self.best_of, points: self.points, cap: self.cap }
+    }
+    /// Result of a finished game: its sets, or the single score of a game finished before sets existed.
+    fn result(&self) -> Sets {
+        match (self.sets.0.is_empty(), self.score_a, self.score_b) {
+            (true, Some(a), Some(b)) => vec![[a, b]],
+            _ => self.sets.0.clone(),
+        }
+    }
 }
 
 struct Snap {
     singles: bool,
+    fmt: Fmt,
     courts: Vec<(i32, String, String)>,
     players: Vec<PlayerRow>,
     games: Vec<GameRow>,
@@ -219,20 +290,31 @@ impl Snap {
             .games
             .iter()
             .map(|g| {
+                let f = g.fmt();
                 let (a, b) = (g.score_a.unwrap_or(0), g.score_b.unwrap_or(0));
-                // A finished game may hold a typed-in score from a shorter format, so the higher score wins.
-                let won = match g.status.as_str() {
-                    "done" if g.score_a.is_some() && g.score_b.is_some() && a != b => Some(if a > b { "a" } else { "b" }),
-                    "playing" => winner(a, b),
-                    _ => None,
+                let playing = g.status == "playing";
+                let (sets, score_a, score_b, won) = if g.status == "done" {
+                    let res = g.result();
+                    let [x, y] = sets_won(&res);
+                    // A finished game may hold a typed-in score from a shorter format, so more sets (or points) wins.
+                    let won = (x != y).then_some(if x > y { "a" } else { "b" });
+                    // One-set results keep their points in score_a/score_b, as before sets existed.
+                    let single = (res.len() == 1).then(|| res[0]);
+                    (res, single.map(|s| s[0]), single.map(|s| s[1]), won)
+                } else {
+                    (g.sets.0.clone(), g.score_a, g.score_b, if playing { match_winner(f, &g.sets.0) } else { None })
                 };
                 json!({"id": g.id, "court": g.court, "status": g.status, "team_a": g.team_a, "team_b": g.team_b,
-                       "score_a": g.score_a, "score_b": g.score_b, "started_at": g.started_at, "ended_at": g.ended_at,
-                       "winner": won, "game_point": if g.status == "playing" { game_point(a, b) } else { vec![] }})
+                       "score_a": score_a, "score_b": score_b, "sets": sets, "sets_won": sets_won(&sets),
+                       "best_of": f.best_of, "points": f.points, "cap": f.cap,
+                       "started_at": g.started_at, "ended_at": g.ended_at, "winner": won,
+                       "game_point": if playing && won.is_none() { game_point(f, a, b) } else { vec![] },
+                       "match_point": if playing && won.is_none() { match_point(f, &g.sets.0, a, b) } else { vec![] }})
             })
             .collect();
         let courts: Vec<Value> = self.courts.iter().map(|(c, g, l)| json!({"court": c, "gender_mode": g, "level_mode": l})).collect();
-        json!({"singles": self.singles, "courts": courts, "players": players, "games": games, "leaderboard": self.leaderboard()})
+        let f = self.fmt;
+        json!({"singles": self.singles, "best_of": f.best_of, "points": f.points, "cap": f.cap, "courts": courts, "players": players, "games": games, "leaderboard": self.leaderboard()})
     }
 
     /// Players with finished games, ranked by wins, point difference, points scored, then name.
@@ -242,12 +324,16 @@ impl Snap {
         for p in self.players.iter().filter(|p| p.plays > 0) {
             let (mut w, mut l, mut pf, mut pa) = (0, 0, 0, 0);
             for g in self.games.iter().filter(|g| g.status == "done") {
-                let (Some(a), Some(b)) = (g.score_a, g.score_b) else { continue };
-                let (own, other) = if g.team_a.contains(&p.id) { (a, b) } else if g.team_b.contains(&p.id) { (b, a) } else { continue };
-                pf += own;
-                pa += other;
-                w += (own > other) as i32;
-                l += (own < other) as i32;
+                let res = g.result();
+                if res.is_empty() {
+                    continue;
+                }
+                let side = if g.team_a.contains(&p.id) { 0 } else if g.team_b.contains(&p.id) { 1 } else { continue };
+                let won = sets_won(&res);
+                pf += res.iter().map(|s| s[side]).sum::<i32>();
+                pa += res.iter().map(|s| s[1 - side]).sum::<i32>();
+                w += (won[side] > won[1 - side]) as i32;
+                l += (won[side] < won[1 - side]) as i32;
             }
             rows.push((p, w, l, pf, pa));
         }
@@ -271,7 +357,8 @@ async fn ensure_courts(c: &mut PgConnection, id: Uuid) -> R<()> {
 }
 
 async fn load(c: &mut PgConnection, id: Uuid) -> R<Snap> {
-    let singles: bool = sqlx::query_scalar("SELECT rotation_singles FROM matches WHERE id = $1").bind(id).fetch_one(&mut *c).await?;
+    let (singles, best_of, points, cap): (bool, i32, i32, i32) =
+        sqlx::query_as("SELECT rotation_singles, rotation_best_of, rotation_points, rotation_cap FROM matches WHERE id = $1").bind(id).fetch_one(&mut *c).await?;
     ensure_courts(c, id).await?;
     let courts = sqlx::query_as("SELECT court, gender_mode, level_mode FROM rotation_courts WHERE match_id = $1 ORDER BY court").bind(id).fetch_all(&mut *c).await?;
     let players = sqlx::query_as::<_, PlayerRow>(
@@ -286,12 +373,13 @@ async fn load(c: &mut PgConnection, id: Uuid) -> R<Snap> {
     .fetch_all(&mut *c)
     .await?;
     let games = sqlx::query_as::<_, GameRow>(
-        "SELECT id, court, status::text AS status, team_a, team_b, score_a, score_b, started_at, ended_at FROM rotation_games WHERE match_id = $1 ORDER BY created_at",
+        "SELECT id, court, status::text AS status, team_a, team_b, score_a, score_b, started_at, ended_at, best_of, points, cap, sets \
+         FROM rotation_games WHERE match_id = $1 ORDER BY created_at",
     )
     .bind(id)
     .fetch_all(&mut *c)
     .await?;
-    Ok(Snap { singles, courts, players, games })
+    Ok(Snap { singles, fmt: Fmt { best_of, points, cap }, courts, players, games })
 }
 
 /// Locks the match for this transaction and checks the caller manages it and it is not cancelled.
@@ -324,6 +412,10 @@ pub async fn get(State(st): State<AppState>, _m: Member, Path(id): Path<Uuid>) -
 pub struct SettingsIn {
     courts: Option<i32>,
     singles: Option<bool>,
+    /// Scoring format for games started from now on (running games keep theirs).
+    best_of: Option<i32>,
+    points: Option<i32>,
+    cap: Option<i32>,
 }
 
 pub async fn settings(State(st): State<AppState>, m: Member, Path(id): Path<Uuid>, Json(b): Json<SettingsIn>) -> R<Json<Value>> {
@@ -345,6 +437,27 @@ pub async fn settings(State(st): State<AppState>, m: Member, Path(id): Path<Uuid
             return Err(e409("COURT_BUSY", "Selesaikan atau kosongkan semua giliran sebelum mengganti format"));
         }
         sqlx::query("UPDATE matches SET rotation_singles = $2 WHERE id = $1").bind(id).bind(s).execute(&mut *tx).await?;
+    }
+    if b.best_of.is_some() || b.points.is_some() || b.cap.is_some() {
+        let best_of = b.best_of.unwrap_or(snap.fmt.best_of);
+        let points = b.points.unwrap_or(snap.fmt.points);
+        let cap = b.cap.unwrap_or(snap.fmt.cap);
+        if ![1, 3, 5].contains(&best_of) {
+            return Err(invalid("best_of", "1, 3 atau 5 set"));
+        }
+        if !(1..=99).contains(&points) {
+            return Err(invalid("points", "1 sampai 99 poin"));
+        }
+        if !(points..=99).contains(&cap) {
+            return Err(invalid("cap", "Poin maksimal antara poin per set dan 99"));
+        }
+        sqlx::query("UPDATE matches SET rotation_best_of = $2, rotation_points = $3, rotation_cap = $4 WHERE id = $1")
+            .bind(id)
+            .bind(best_of)
+            .bind(points)
+            .bind(cap)
+            .execute(&mut *tx)
+            .await?;
     }
     reply(tx, id).await
 }
@@ -538,38 +651,71 @@ pub async fn start(State(st): State<AppState>, m: Member, Path((id, gid)): Path<
     if busy {
         return Err(e409("COURT_BUSY", "Lapangan masih dipakai; selesaikan pertandingan yang berjalan dulu"));
     }
-    sqlx::query("UPDATE rotation_games SET status = 'playing', started_at = now() WHERE id = $1").bind(gid).execute(&mut *tx).await?;
+    // The game keeps the format set when it starts.
+    sqlx::query(
+        "UPDATE rotation_games g SET status = 'playing', started_at = now(), best_of = m.rotation_best_of, points = m.rotation_points, cap = m.rotation_cap \
+         FROM matches m WHERE g.id = $1 AND m.id = g.match_id",
+    )
+    .bind(gid)
+    .execute(&mut *tx)
+    .await?;
     reply(tx, id).await
 }
 
 #[derive(Deserialize)]
+#[derive(Default)]
 pub struct ScoreIn {
+    /// One set's score (the set being played, at finish).
     score_a: Option<i32>,
     score_b: Option<i32>,
+    /// The whole result, set by set; replaces everything else when given.
+    sets: Option<Sets>,
 }
 
 fn check_score(b: &ScoreIn) -> R<()> {
-    if b.score_a.is_some_and(|s| s < 0) || b.score_b.is_some_and(|s| s < 0) {
+    let points = b.sets.iter().flatten().flatten().chain(&b.score_a).chain(&b.score_b);
+    if points.clone().any(|s| *s < 0) {
         return Err(invalid("score_a", "Tidak boleh negatif"));
+    }
+    if points.clone().any(|s| *s > 99) || b.sets.as_ref().is_some_and(|s| s.len() > 5) {
+        return Err(invalid("sets", "Paling banyak 5 set, 99 poin per set"));
     }
     Ok(())
 }
 
-/// Ends a running game. Every player gets one more game; their wait starts now; `games_played` follows.
-pub async fn finish(State(st): State<AppState>, m: Member, Path((id, gid)): Path<(Uuid, Uuid)>, body: Option<Json<ScoreIn>>) -> R<Json<Value>> {
-    let b = body.map(|Json(b)| b).unwrap_or(ScoreIn { score_a: None, score_b: None });
-    check_score(&b)?;
-    let mut tx = begin_manage(&st, &m, id).await?;
-    if game_status(&mut *tx, id, gid).await?.1 != "playing" {
-        return Err(e409("GAME_NOT_PLAYING", "Pertandingan belum dimulai atau sudah selesai"));
-    }
-    let ids: Vec<Uuid> = sqlx::query_scalar(
-        // No score given: keep the live score from the scoreboard.
-        "UPDATE rotation_games SET status = 'done', ended_at = now(), score_a = coalesce($2, score_a), score_b = coalesce($3, score_b) WHERE id = $1 RETURNING team_a || team_b",
+/// Live state of a game, locked for this transaction.
+async fn live(c: &mut PgConnection, id: Uuid, gid: Uuid) -> R<(String, Fmt, Sets, [i32; 2])> {
+    let (status, best_of, points, cap, sets, a, b): (String, i32, i32, i32, sqlx::types::Json<Sets>, i32, i32) = sqlx::query_as(
+        "SELECT status::text, best_of, points, cap, sets, coalesce(score_a, 0), coalesce(score_b, 0) FROM rotation_games WHERE id = $1 AND match_id = $2 FOR UPDATE",
     )
     .bind(gid)
-    .bind(b.score_a)
-    .bind(b.score_b)
+    .bind(id)
+    .fetch_one(&mut *c)
+    .await?;
+    Ok((status, Fmt { best_of, points, cap }, sets.0, [a, b]))
+}
+
+/// Ends a running game. Every player gets one more game; their wait starts now; `games_played` follows.
+pub async fn finish(State(st): State<AppState>, m: Member, Path((id, gid)): Path<(Uuid, Uuid)>, body: Option<Json<ScoreIn>>) -> R<Json<Value>> {
+    let b = body.map(|Json(b)| b).unwrap_or_default();
+    check_score(&b)?;
+    let mut tx = begin_manage(&st, &m, id).await?;
+    let (status, _, mut sets, cur) = live(&mut *tx, id, gid).await?;
+    if status != "playing" {
+        return Err(e409("GAME_NOT_PLAYING", "Pertandingan belum dimulai atau sudah selesai"));
+    }
+    // No score given: keep the live score; a set in progress is recorded as it stands.
+    let last = [b.score_a.unwrap_or(cur[0]), b.score_b.unwrap_or(cur[1])];
+    match b.sets {
+        Some(s) => sets = s,
+        None if last != [0, 0] || b.score_a.is_some() => sets.push(last),
+        None => {}
+    }
+    let ids: Vec<Uuid> = sqlx::query_scalar(
+        "UPDATE rotation_games SET status = 'done', ended_at = now(), sets = $2, score_a = NULL, score_b = NULL WHERE id = $1 RETURNING team_a || team_b",
+    )
+    .bind(gid)
+    .bind(sqlx::types::Json(&sets))
     .fetch_one(&mut *tx)
     .await?;
     sqlx::query("UPDATE rotation_players SET wait_since = now() WHERE join_request_id = ANY($1)").bind(&ids).execute(&mut *tx).await?;
@@ -598,16 +744,20 @@ pub async fn point(State(st): State<AppState>, m: Member, Path((id, gid)): Path<
         return Err(invalid("delta", "1 atau -1"));
     }
     let mut tx = begin_manage(&st, &m, id).await?;
-    let (status, a, bs): (String, i32, i32) =
-        sqlx::query_as("SELECT status::text, coalesce(score_a, 0), coalesce(score_b, 0) FROM rotation_games WHERE id = $1 AND match_id = $2").bind(gid).bind(id).fetch_one(&mut *tx).await?;
+    let (status, f, mut sets, mut cur) = live(&mut *tx, id, gid).await?;
     if status != "playing" {
         return Err(e409("GAME_NOT_PLAYING", "Skor langsung hanya untuk pertandingan yang sedang berjalan"));
     }
-    if b.delta == 1 && winner(a, bs).is_some() {
+    if rally(f, &mut sets, &mut cur, (b.team == "b") as usize, b.delta).is_err() {
         return Err(e409("GAME_DECIDED", "Game sudah dimenangkan; tekan Selesai atau batalkan poin terakhir"));
     }
-    let (na, nb) = if b.team == "a" { ((a + b.delta).max(0), bs) } else { (a, (bs + b.delta).max(0)) };
-    sqlx::query("UPDATE rotation_games SET score_a = $2, score_b = $3 WHERE id = $1").bind(gid).bind(na).bind(nb).execute(&mut *tx).await?;
+    sqlx::query("UPDATE rotation_games SET score_a = $2, score_b = $3, sets = $4 WHERE id = $1")
+        .bind(gid)
+        .bind(cur[0])
+        .bind(cur[1])
+        .bind(sqlx::types::Json(&sets))
+        .execute(&mut *tx)
+        .await?;
     reply(tx, id).await
 }
 
@@ -618,7 +768,9 @@ pub async fn score(State(st): State<AppState>, m: Member, Path((id, gid)): Path<
     if game_status(&mut *tx, id, gid).await?.1 != "done" {
         return Err(e409("GAME_NOT_DONE", "Hasil dicatat setelah pertandingan selesai"));
     }
-    sqlx::query("UPDATE rotation_games SET score_a = $2, score_b = $3 WHERE id = $1").bind(gid).bind(b.score_a).bind(b.score_b).execute(&mut *tx).await?;
+    // Empty scores clear the result.
+    let sets = b.sets.unwrap_or_else(|| b.score_a.zip(b.score_b).map(|(a, s)| vec![[a, s]]).unwrap_or_default());
+    sqlx::query("UPDATE rotation_games SET sets = $2, score_a = NULL, score_b = NULL WHERE id = $1").bind(gid).bind(sqlx::types::Json(&sets)).execute(&mut *tx).await?;
     reply(tx, id).await
 }
 
@@ -659,15 +811,44 @@ mod tests {
 
     #[test]
     fn scoring_follows_bwf_rules() {
-        assert_eq!(winner(21, 19), Some("a"));
-        assert_eq!(winner(21, 20), None, "needs a 2-point lead");
-        assert_eq!(winner(20, 22), Some("b"));
-        assert_eq!(winner(30, 29), Some("a"), "30 wins outright");
-        assert_eq!(game_point(20, 15), vec!["a"]);
-        assert_eq!(game_point(20, 20), Vec::<&str>::new(), "deuce: nobody is one rally away");
-        assert_eq!(game_point(21, 20), vec!["a"]);
-        assert_eq!(game_point(29, 29), vec!["a", "b"]);
-        assert_eq!(game_point(21, 19), Vec::<&str>::new(), "already won");
+        let f = Fmt { best_of: 1, points: 21, cap: 30 };
+        assert_eq!(set_winner(f, 21, 19), Some("a"));
+        assert_eq!(set_winner(f, 21, 20), None, "needs a 2-point lead");
+        assert_eq!(set_winner(f, 20, 22), Some("b"));
+        assert_eq!(set_winner(f, 30, 29), Some("a"), "30 wins outright");
+        assert_eq!(game_point(f, 20, 15), vec!["a"]);
+        assert_eq!(game_point(f, 20, 20), Vec::<&str>::new(), "deuce: nobody is one rally away");
+        assert_eq!(game_point(f, 21, 20), vec!["a"]);
+        assert_eq!(game_point(f, 29, 29), vec!["a", "b"]);
+        assert_eq!(game_point(f, 21, 19), Vec::<&str>::new(), "already won");
+        let no_deuce = Fmt { best_of: 1, points: 30, cap: 30 };
+        assert_eq!(set_winner(no_deuce, 30, 29), Some("a"), "cap = points: first to 30");
+        assert_eq!(game_point(no_deuce, 29, 29), vec!["a", "b"]);
+    }
+
+    #[test]
+    fn best_of_three_sets() {
+        let f = Fmt { best_of: 3, points: 11, cap: 15 };
+        let (mut sets, mut cur) = (vec![], [0, 0]);
+        let tap = |team: usize, n: usize, delta: i32, sets: &mut Sets, cur: &mut [i32; 2]| (0..n).try_for_each(|_| rally(f, sets, cur, team, delta));
+        tap(0, 11, 1, &mut sets, &mut cur).unwrap();
+        assert_eq!((sets.clone(), cur), (vec![[11, 0]], [0, 0]), "set 1 to A, set 2 starts at 0-0");
+        assert_eq!(match_winner(f, &sets), None);
+        tap(1, 1, -1, &mut sets, &mut cur).unwrap();
+        assert_eq!((sets.clone(), cur), (vec![[11, 0]], [0, 0]), "undo for B at 0-0 reopens set 1, which is still won");
+        tap(0, 1, -1, &mut sets, &mut cur).unwrap();
+        assert_eq!((sets.clone(), cur), (vec![], [10, 0]), "undo for A reopens set 1");
+        tap(0, 1, 1, &mut sets, &mut cur).unwrap();
+        tap(1, 10, 1, &mut sets, &mut cur).unwrap();
+        tap(0, 10, 1, &mut sets, &mut cur).unwrap();
+        assert_eq!(match_point(f, &sets, cur[0], cur[1]), Vec::<&str>::new(), "10-10: deuce");
+        tap(0, 1, 1, &mut sets, &mut cur).unwrap();
+        assert_eq!(match_point(f, &sets, cur[0], cur[1]), vec!["a"], "11-10 in set 2 after winning set 1");
+        assert_eq!(game_point(f, cur[0], cur[1]), vec!["a"]);
+        tap(0, 1, 1, &mut sets, &mut cur).unwrap();
+        assert_eq!((sets.clone(), match_winner(f, &sets)), (vec![[11, 0], [12, 10]], Some("a")), "2 sets to 0");
+        assert!(rally(f, &mut sets, &mut cur, 1, 1).is_err(), "no points after the game is won");
+        assert_eq!(sets_won(&[[21, 15], [18, 21], [21, 19]]), [2, 1]);
     }
 
     #[test]

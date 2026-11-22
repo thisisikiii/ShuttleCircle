@@ -56,8 +56,8 @@ python3 test/e2e.py         # 124 API checks through Caddy
 node test/ui_smoke.cjs      # needs playwright-core and Chromium
 python3 test/payment_check.py                                 # manual payment: details, QRIS, claims (sandbox, before seeding)
 python3 test/finance_check.py                                 # finance dashboard endpoints and Excel report
-python3 test/rotation_check.py                                # court rotation and scoreboard, 53 API checks
+python3 test/rotation_check.py                                # court rotation, scoring format and sets, 69 API checks
 NODE_TLS_REJECT_UNAUTHORIZED=0 node test/ui_rotation.cjs     # court rotation board as host and player
 ```
 
-Court rotation (FR-19, the latest feature) is on every match page under **Rotasi lapangan**; see FEATURES.md §13.
+Court rotation (FR-19) is on every match page under **Rotasi lapangan**; the latest feature, the scoring format and the full-screen blue/red counter (FR-23), is on the same board. See FEATURES.md §13.

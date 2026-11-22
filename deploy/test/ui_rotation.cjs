@@ -82,18 +82,34 @@ const register = async (name) => {
   expect(await hp.getByRole("button", { name: "Selesai" }).count() === 1, "host: court 1 shows one running game with Selesai");
   expect(await hp.getByRole("button", { name: "Mulai" }).count() === 1, "host: court 2 next turn has Mulai");
   expect(await hp.getByRole("button", { name: "Pilihkan pemain" }).count() === 1, "host: court 1 can prepare its next turn while playing");
-  // Live scoreboard: three rallies to team A, one undone.
+  // Live scoreboard: three rallies to Blue (team A), one undone.
   for (let i = 0; i < 3; i++) {
-    await hp.getByRole("button", { name: "Tambah poin Tim A" }).click();
-    await hp.getByRole("button", { name: "Tambah poin Tim A" }).and(hp.locator(":enabled")).waitFor();
+    await hp.getByRole("button", { name: "Tambah poin Biru", exact: true }).click();
+    await hp.getByRole("button", { name: "Tambah poin Biru", exact: true }).and(hp.locator(":enabled")).waitFor();
   }
-  await hp.getByRole("button", { name: "Batalkan poin Tim A" }).click();
-  await hp.getByLabel("Tim A: 2").waitFor({ timeout: 10000 });
+  await hp.getByRole("button", { name: "Batalkan poin Biru", exact: true }).click();
+  await hp.getByLabel("Biru: 2").waitFor({ timeout: 10000 });
+  // Full-screen counter: tap Blue's half, undo, leave.
+  await hp.setViewportSize({ width: 375, height: 812 });
+  await hp.getByRole("button", { name: "Layar penuh" }).click();
+  const screen = hp.getByRole("region", { name: "Lapangan 1" });
+  await screen.getByRole("button", { name: "Tambah poin Biru: 2" }).click();
+  await screen.getByRole("button", { name: "Tambah poin Biru: 3" }).waitFor({ timeout: 10000 });
+  expect(await screen.getByRole("button", { name: "Simpan hasil" }).count() === 1, "host: full screen has Simpan hasil");
+  await noScroll(hp, "full screen phone");
+  await hp.screenshot({ path: path.join(OUT, "fullscreen-phone.png") });
+  await hp.setViewportSize({ width: 812, height: 375 });
+  await hp.screenshot({ path: path.join(OUT, "fullscreen-landscape.png") });
+  await screen.getByRole("button", { name: "Batalkan poin Biru", exact: true }).click();
+  await screen.getByRole("button", { name: "Tambah poin Biru: 2" }).waitFor({ timeout: 10000 });
+  await screen.getByRole("button", { name: "Keluar" }).click();
+  expect(await hp.getByRole("region", { name: "Lapangan 1" }).count() === 0, "host: Keluar closes the full screen");
+  await hp.setViewportSize({ width: 1280, height: 800 });
   // Finish court 1: the dialog starts from the live score.
   await hp.getByRole("button", { name: "Selesai" }).click();
-  expect((await hp.getByLabel("Skor tim A").inputValue()) === "2", "host: finish dialog prefilled with the live score");
-  await hp.getByLabel("Skor tim A").fill("21");
-  await hp.getByLabel("Skor tim B").fill("17");
+  expect((await hp.getByLabel("Set 1 · Biru").inputValue()) === "2", "host: finish dialog prefilled with the live score");
+  await hp.getByLabel("Set 1 · Biru").fill("21");
+  await hp.getByLabel("Set 1 · Merah").fill("17");
   await hp.screenshot({ path: path.join(OUT, "host-finish-dialog.png") });
   await hp.getByRole("dialog").getByRole("button", { name: "Selesai" }).click();
   await hp.getByText("21–17").first().waitFor({ timeout: 10000 });

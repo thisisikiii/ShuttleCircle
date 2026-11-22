@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, Dialog, ErrorAlert, Input, Select, controlClass } from "@/components/ui";
 import { api, useAct } from "@/lib/api";
 import { fmtTime } from "@/lib/format";
@@ -17,7 +17,8 @@ export function RotationSection({ matchId, manage }: { matchId: string; manage: 
   const q = useQuery({
     queryKey: ["rotation", matchId],
     queryFn: () => api.get<Rotation>(base).then((res) => res.data),
-    refetchInterval: 10_000, // players watch from their phones; the app polls (PRD §10)
+    // players watch from their phones; the app polls (PRD §10), faster while a game's score is live
+    refetchInterval: (query) => (query.state.data?.games.some((g) => g.status === "playing") ? 3_000 : 10_000),
   });
   const act = useAct(({ method, path, body }: { method: "post" | "patch" | "del"; path: string; body?: unknown }) =>
     method === "del" ? api.del(base + path) : api[method](base + path, body ?? {}),
@@ -71,6 +72,40 @@ export function RotationSection({ matchId, manage }: { matchId: string; manage: 
               </Button>
             </div>
           </div>
+          <Select
+            label={r.sets}
+            className="w-32"
+            value={data.best_of}
+            disabled={act.isPending}
+            onChange={(e) => run("patch", "", { best_of: Number(e.target.value) })}
+          >
+            {[1, 3, 5].map((n) => (
+              <option key={n} value={n}>
+                {r.bestOf(n)}
+              </option>
+            ))}
+          </Select>
+          {(["points", "cap"] as const).map((k) => (
+            <Input
+              // remount when the saved value changes, so the field shows it
+              key={`${k}-${data[k]}`}
+              label={r[k]}
+              className="w-28"
+              type="number"
+              min={k === "cap" ? data.points : 1}
+              max={99}
+              inputMode="numeric"
+              defaultValue={data[k]}
+              disabled={act.isPending}
+              onBlur={(e) => {
+                const v = Number(e.target.value);
+                if (v && v !== data[k]) run("patch", "", k === "points" ? { points: v, cap: Math.max(v, data.cap) } : { cap: v });
+              }}
+            />
+          ))}
+          <p className="caption w-full text-muted">
+            {r.scoreRule(data.best_of, data.points, data.cap)} · {r.capHint}
+          </p>
         </div>
       )}
 
@@ -144,6 +179,7 @@ function Court({
   const next = data.games.find((g) => g.court === n && g.status === "next");
   const [finishing, setFinishing] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [full, setFull] = useState(false);
 
   return (
     <div className="card p-4">
@@ -187,11 +223,16 @@ function Court({
             {r.playing} · <span className="mono">{r.minutes(minutesSince(playing.started_at))}</span>
           </p>
           <Scoreboard g={playing} byId={byId} manage={manage} busy={busy} run={run} />
-          {manage && (
-            <Button variant="primary" className="mt-3" disabled={busy} onClick={() => setFinishing(true)}>
-              {r.finish}
+          <div className="mt-3 flex flex-wrap gap-1">
+            <Button variant="primary" onClick={() => setFull(true)}>
+              {r.fullscreen}
             </Button>
-          )}
+            {manage && (
+              <Button disabled={busy} onClick={() => setFinishing(true)}>
+                {r.finish}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
@@ -239,7 +280,7 @@ function Court({
           // remount on open so the dialog starts from the current live score
           key={finishing ? "open" : "closed"}
           open={finishing}
-          initial={playing}
+          initial={[...playing.sets, [playing.score_a ?? 0, playing.score_b ?? 0]]}
           title={r.finishTitle(n)}
           body={r.finishBody}
           onClose={() => setFinishing(false)}
@@ -248,6 +289,9 @@ function Court({
             setFinishing(false);
           }}
         />
+      )}
+      {playing && full && (
+        <ScoreScreen g={playing} court={n} byId={byId} manage={manage} busy={busy} run={run} onClose={() => setFull(false)} />
       )}
       {choosing && (
         <ManualDialog
@@ -266,7 +310,26 @@ function Court({
   );
 }
 
-/** Live score of a running game. Hosts tap +1 per rally; everyone else sees it update on the 10 s poll. */
+const names = (g: RotationGame, x: "a" | "b", byId: Map<string, RotationPlayer>) =>
+  (x === "a" ? g.team_a : g.team_b).map((id) => byId.get(id)?.name ?? "?").join(" & ");
+
+/** Winner, match point, game point, or the scoring rule. */
+function Status({ g }: { g: RotationGame }) {
+  return g.winner ? (
+    <span className="text-success">{r.won(g.winner)}</span>
+  ) : g.match_point.length > 0 ? (
+    <span className="text-warning">{r.matchPoint(g.match_point.map(r.team).join(" & "))}</span>
+  ) : g.game_point.length > 0 ? (
+    <span className="text-warning">{r.gamePoint(g.game_point.map(r.team).join(" & "))}</span>
+  ) : (
+    <span className="font-normal opacity-80">{r.scoreRule(g.best_of, g.points, g.cap)}</span>
+  );
+}
+
+const setsText = (sets: [number, number][]) => sets.map(([a, b]) => `${a}–${b}`).join(" · ");
+const sideColor = { a: "bg-blue-600", b: "bg-red-600" } as const;
+
+/** Live score of a running game. Hosts tap +1 per rally; everyone else sees it update on the poll. */
 function Scoreboard({
   g,
   byId,
@@ -281,26 +344,30 @@ function Scoreboard({
   run: Run;
 }) {
   const side = (x: "a" | "b") => {
-    const ids = x === "a" ? g.team_a : g.team_b;
     const score = (x === "a" ? g.score_a : g.score_b) ?? 0;
     return (
-      <div className={`rounded-xl p-2 text-center ${g.winner === x ? "bg-accent text-on-accent" : "bg-surface"}`}>
-        <p className="caption truncate font-medium">{ids.map((id) => byId.get(id)?.name ?? "?").join(" & ")}</p>
+      <div className={`rounded-xl p-2 text-center text-white ${sideColor[x]} ${g.winner === x ? "ring-4 ring-accent" : ""}`}>
+        <p className="caption truncate font-medium">{names(g, x, byId)}</p>
         <p className="mono text-4xl font-bold tabular-nums" aria-label={`${r.team(x)}: ${score}`}>
           {score}
         </p>
+        {g.best_of > 1 && (
+          <p className="caption">
+            {r.sets}: {g.sets_won[x === "a" ? 0 : 1]}
+          </p>
+        )}
         {manage && (
           <div className="mt-1 flex justify-center gap-1">
             <Button
               variant="tertiary"
+              className="text-white!"
               aria-label={r.undoPoint(x)}
-              disabled={busy || score === 0}
+              disabled={busy || (score === 0 && g.sets.length === 0)}
               onClick={() => run("post", `/games/${g.id}/point`, { team: x, delta: -1 })}
             >
               −1
             </Button>
             <Button
-              variant="primary"
               aria-label={r.addPoint(x)}
               disabled={busy || !!g.winner}
               onClick={() => run("post", `/games/${g.id}/point`, { team: x, delta: 1 })}
@@ -318,19 +385,132 @@ function Scoreboard({
         {side("a")}
         {side("b")}
       </div>
+      {g.sets.length > 0 && (
+        <p className="caption mono mt-2">
+          {setsText(g.sets)}
+          {!g.winner && ` · ${r.setNow(g.sets.length + 1)}`}
+        </p>
+      )}
       <p className="caption mt-2 font-bold" role="status">
-        {g.winner ? (
-          <span className="text-success">{r.won(g.winner)}</span>
-        ) : g.game_point.length > 0 ? (
-          <span className="text-warning">{r.matchPoint(g.game_point.map(r.team).join(" & "))}</span>
-        ) : (
-          <span className="font-normal text-muted">{r.scoreRule}</span>
-        )}
+        <Status g={g} />
       </p>
     </>
   );
 }
 
+/** Full-screen counter: tap a team's half for a point. Keeps the screen on and uses browser full screen where allowed. */
+function ScoreScreen({
+  g,
+  court,
+  byId,
+  manage,
+  busy,
+  run,
+  onClose,
+}: {
+  g: RotationGame;
+  court: number;
+  byId: Map<string, RotationPlayer>;
+  manage: boolean;
+  busy: boolean;
+  run: Run;
+  onClose: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    let lock: { release: () => Promise<void> } | undefined;
+    // iPhone Safari has no page full screen; the fixed overlay still covers the page there.
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    (navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } }).wakeLock
+      ?.request("screen")
+      .then((l) => (lock = l))
+      .catch(() => {});
+    return () => {
+      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+      lock?.release().catch(() => {});
+    };
+  }, []);
+  const point = (x: "a" | "b", delta: number) => run("post", `/games/${g.id}/point`, { team: x, delta });
+
+  const half = (x: "a" | "b") => {
+    const score = (x === "a" ? g.score_a : g.score_b) ?? 0;
+    return (
+      <div className={`relative flex min-h-0 ${sideColor[x]} text-white`}>
+        <button
+          type="button"
+          className="flex w-full min-w-0 flex-col items-center justify-center gap-1 p-4 disabled:cursor-default"
+          aria-label={`${r.addPoint(x)}: ${score}`}
+          disabled={!manage || busy || !!g.winner}
+          onClick={() => point(x, 1)}
+        >
+          <span className="max-w-full truncate text-lg font-semibold sm:text-2xl">{names(g, x, byId)}</span>
+          <span className="mono text-[min(38vw,30vh)] leading-none font-bold tabular-nums landscape:text-[min(26vw,55vh)]">{score}</span>
+          {g.best_of > 1 && (
+            <span className="text-lg font-semibold">
+              {r.sets}: {g.sets_won[x === "a" ? 0 : 1]}
+            </span>
+          )}
+        </button>
+        {manage && (
+          <button
+            type="button"
+            className="absolute right-3 bottom-3 min-h-11 min-w-11 rounded-full bg-black/30 px-4 text-lg font-bold disabled:opacity-40"
+            aria-label={r.undoPoint(x)}
+            disabled={busy || (score === 0 && g.sets.length === 0)}
+            onClick={() => point(x, -1)}
+          >
+            −1
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 text-white" role="region" aria-label={r.court(court)}>
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">
+            {r.court(court)} · {g.winner ? r.bestOf(g.best_of) : r.setNow(g.sets.length + 1)}
+            {g.sets.length > 0 && <span className="mono ml-2 font-normal opacity-80">{setsText(g.sets)}</span>}
+          </p>
+          <p className="caption font-bold" role="status">
+            <Status g={g} />
+          </p>
+        </div>
+        {manage && (
+          <Button variant="primary" disabled={busy} onClick={() => setSaving(true)}>
+            {r.saveResult}
+          </Button>
+        )}
+        <Button onClick={onClose}>{r.exitFullscreen}</Button>
+      </div>
+      <div className="grid min-h-0 flex-1 grid-rows-2 landscape:grid-cols-2 landscape:grid-rows-1">
+        {half("a")}
+        {half("b")}
+      </div>
+      <Dialog open={saving} onClose={() => setSaving(false)} title={r.saveTitle}>
+        <p className="mb-3">{g.winner ? r.saveFinished(g.winner) : r.saveUnfinished}</p>
+        <div className="mt-6 flex justify-end gap-2">
+          <Button variant="tertiary" onClick={() => setSaving(false)}>
+            {t.common.back}
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => {
+              setSaving(false);
+              run("post", `/games/${g.id}/finish`);
+            }}
+          >
+            {r.saveResult}
+          </Button>
+        </div>
+      </Dialog>
+    </div>
+  );
+}
+
+/** Result set by set. Rows with an empty field are left out; no rows means no score. */
 function ScoreDialog({
   open,
   title,
@@ -342,25 +522,64 @@ function ScoreDialog({
   open: boolean;
   title: string;
   body?: string;
-  initial?: RotationGame;
+  initial: [number | null, number | null][];
   onClose: () => void;
-  onSave: (b: { score_a: number | null; score_b: number | null }) => void;
+  onSave: (b: { sets: [number, number][] }) => void;
 }) {
-  const [a, setA] = useState(initial?.score_a?.toString() ?? "");
-  const [b, setB] = useState(initial?.score_b?.toString() ?? "");
-  const num = (v: string) => (v.trim() === "" ? null : Math.max(0, Number(v)));
+  const [rows, setRows] = useState(() =>
+    (initial.length ? initial : [[null, null]]).map(([a, b]) => [a?.toString() ?? "", b?.toString() ?? ""]),
+  );
+  const edit = (i: number, j: number, v: string) => setRows(rows.map((row, k) => (k === i ? row.map((c, l) => (l === j ? v : c)) : row)));
   return (
     <Dialog open={open} onClose={onClose} title={title}>
       {body && <p className="mb-3">{body}</p>}
-      <div className="grid grid-cols-2 gap-3">
-        <Input label={r.scoreA} type="number" min={0} inputMode="numeric" value={a} onChange={(e) => setA(e.target.value)} />
-        <Input label={r.scoreB} type="number" min={0} inputMode="numeric" value={b} onChange={(e) => setB(e.target.value)} />
+      <div className="grid gap-2">
+        {rows.map(([a, b], i) => (
+          <div key={i} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+            <Input
+              label={r.setScore(i + 1, "a")}
+              type="number"
+              min={0}
+              max={99}
+              inputMode="numeric"
+              value={a}
+              onChange={(e) => edit(i, 0, e.target.value)}
+            />
+            <Input
+              label={r.setScore(i + 1, "b")}
+              type="number"
+              min={0}
+              max={99}
+              inputMode="numeric"
+              value={b}
+              onChange={(e) => edit(i, 1, e.target.value)}
+            />
+            <Button variant="tertiary" aria-label={r.removeSet(i + 1)} onClick={() => setRows(rows.filter((_, k) => k !== i))}>
+              ×
+            </Button>
+          </div>
+        ))}
       </div>
+      {rows.length < 5 && (
+        <Button variant="tertiary" className="mt-2" onClick={() => setRows([...rows, ["", ""]])}>
+          {r.addSet}
+        </Button>
+      )}
+      <p className="caption mt-2 text-muted">{r.noScore}</p>
       <div className="mt-6 flex justify-end gap-2">
         <Button variant="tertiary" onClick={onClose}>
           {t.common.back}
         </Button>
-        <Button variant="primary" onClick={() => onSave({ score_a: num(a), score_b: num(b) })}>
+        <Button
+          variant="primary"
+          onClick={() =>
+            onSave({
+              sets: rows
+                .filter(([a, b]) => a.trim() !== "" && b.trim() !== "")
+                .map(([a, b]) => [Math.max(0, Number(a)), Math.max(0, Number(b))] as [number, number]),
+            })
+          }
+        >
           {body ? r.finish : r.save}
         </Button>
       </div>
@@ -576,11 +795,7 @@ function Finished({
               <Teams g={g} byId={byId} />
             </div>
             <div className="flex items-center gap-2">
-              {g.score_a !== null && g.score_b !== null && (
-                <span className="mono font-semibold">
-                  {g.score_a}–{g.score_b}
-                </span>
-              )}
+              {g.sets.length > 0 && <span className="mono font-semibold">{setsText(g.sets)}</span>}
               {manage && (
                 <Button variant="tertiary" disabled={busy} onClick={() => setEditing(g)}>
                   {r.editScore}
@@ -594,7 +809,7 @@ function Finished({
         <ScoreDialog
           open
           title={r.editScore}
-          initial={editing}
+          initial={editing.sets}
           onClose={() => setEditing(null)}
           onSave={(body) => {
             run("patch", `/games/${editing.id}`, body);
