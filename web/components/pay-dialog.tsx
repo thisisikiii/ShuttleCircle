@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Alert, Button, Dialog, ErrorAlert, Input, Select } from "@/components/ui";
+import { Alert, Button, Dialog, ErrorAlert, Input } from "@/components/ui";
 import { api, fetchBlob, useAct } from "@/lib/api";
 import { rupiah } from "@/lib/format";
 import { t } from "@/lib/strings";
@@ -38,12 +38,14 @@ export function PayDialog({
 
   return (
     <Dialog open onClose={onClose} title={p.title}>
-      <p className="label">{p.amount}</p>
-      <p className="mono mb-3 text-2xl font-bold">{rupiah(amount)}</p>
+      <div className="mb-4 rounded-3xl bg-lime p-4 [--color-label:#1a2e05]">
+        <p className="label">{p.amount}</p>
+        <p className="mono text-3xl font-extrabold tracking-tight text-slate-950">{rupiah(amount)}</p>
+      </div>
       {info.isError && <ErrorAlert error={info.error} onRetry={() => info.refetch()} />}
       {empty && <Alert tone="info">{p.notSet}</Alert>}
       {i && !empty && (
-        <div className="max-h-[55vh] space-y-4 overflow-y-auto">
+        <div className="space-y-4">
           <p className="caption text-muted">{p.steps}</p>
           {joinRequestId && <p className="caption text-muted">{p.holdNote}</p>}
           {i.qris && (
@@ -86,13 +88,27 @@ export function PayDialog({
               claim.mutate();
             }}
           >
-            <Select label={p.method} value={method || methods[0]} onChange={(e) => setMethod(e.target.value)}>
-              {methods.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </Select>
+            <fieldset>
+              <legend className="label mb-2">{p.method}</legend>
+              <div className="flex flex-wrap gap-2">
+                {methods.map((m) => (
+                  <label
+                    key={m}
+                    className="flex min-h-11 cursor-pointer items-center rounded-full border-2 border-border px-4 text-sm font-bold transition hover:border-accent/50 has-checked:border-accent has-checked:bg-accent has-checked:text-on-accent has-focus-visible:outline-2 has-focus-visible:outline-accent"
+                  >
+                    <input
+                      type="radio"
+                      name="pay-method"
+                      value={m}
+                      checked={(method || methods[0]) === m}
+                      onChange={() => setMethod(m)}
+                      className="sr-only"
+                    />
+                    {m}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <Input label={p.note} value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} />
             {claim.isError && <ErrorAlert error={claim.error} />}
             <Button type="submit" variant="primary" className="w-full" disabled={claim.isPending}>
@@ -113,7 +129,7 @@ export function PayDialog({
 function Account({ label, number }: { label: string; number: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-1">
+    <div className="flex items-center justify-between gap-2 rounded-2xl border-2 border-border py-1.5 pr-1.5 pl-4">
       <div className="min-w-0">
         <p className="caption text-muted">{label}</p>
         <p className="mono font-semibold tracking-wide">{number}</p>
@@ -169,8 +185,8 @@ export function Qris({ version = 0 }: { version?: number }) {
   };
 
   return (
-    <div className="space-y-2 text-center">
-      <img src={img.url} alt={p.qrisAlt} className="mx-auto w-full max-w-64 rounded-xl bg-white" />
+    <div className="space-y-3 rounded-3xl border-2 border-dashed border-border p-4 text-center">
+      <img src={img.url} alt={p.qrisAlt} className="mx-auto w-full max-w-60 rounded-2xl bg-white" />
       <Button onClick={save}>
         {p.saveQr}
       </Button>

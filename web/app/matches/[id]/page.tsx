@@ -43,10 +43,10 @@ export default function MatchPage() {
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <>
-      <dt className="label pt-1">{label}</dt>
-      <dd>{children}</dd>
-    </>
+    <div className="rounded-2xl bg-bg px-4 py-3">
+      <dt className="label">{label}</dt>
+      <dd className="mt-0.5 font-semibold text-primary">{children}</dd>
+    </div>
   );
 }
 
@@ -74,12 +74,14 @@ function Detail({ m }: { m: MatchDetail }) {
           </>
         )}
         {atLeast(me, "superadmin") && (scheduled || m.status === "ongoing") && (
-          <Button onClick={() => setCancelling(true)}>{t.match.cancel}</Button>
+          <Button variant="danger" onClick={() => setCancelling(true)}>
+            {t.match.cancel}
+          </Button>
         )}
       </PageHeader>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <dl className="card grid grid-cols-[7.5rem_minmax(0,1fr)] content-start gap-x-4 gap-y-2 p-5">
+        <dl className="card grid content-start gap-2 p-3 sm:grid-cols-2">
           <Row label={t.match.time}>
             {fmtDate(m.starts_at)} · <span className="mono">{fmtTime(m.starts_at)}</span> {t.common.wib}
           </Row>
@@ -210,11 +212,11 @@ function Roster({ m, editable }: { m: MatchDetail; editable: boolean }) {
             save.mutate();
           }}
         >
-          <ol>
+          <ol className="card divide-y divide-border px-5 empty:hidden">
             {roster.map((r, i) => (
               <li
                 key={r.join_request_id}
-                className="flex min-h-11 items-center justify-between gap-3 border-t border-border py-1"
+                className="flex min-h-12 items-center justify-between gap-3 py-1"
               >
                 <span>
                   <span className="mono mr-2 text-muted">{i + 1}</span>
@@ -257,9 +259,10 @@ function Requests({ requests }: { requests: JoinRequest[] }) {
       <h2 className="mb-2">{t.match.requests}</h2>
       {requests.length === 0 && <p className="text-muted">{t.approvals.empty}</p>}
       {act.isError && <ErrorAlert error={act.error} />}
-      <ul>
+      {requests.length > 0 && (
+      <ul className="card divide-y divide-border px-5">
         {requests.map((r) => (
-          <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-3 border-t border-border py-2">
+          <li key={r.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 py-3">
             <div className="min-w-0">
               <p className="font-medium">
                 {r.player.name}
@@ -270,12 +273,13 @@ function Requests({ requests }: { requests: JoinRequest[] }) {
                 {r.note && ` · ${r.note}`}
               </p>
             </div>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center gap-2">
               <Chip status={r.status} />
               {/* an expired hold may be approved again (FEATURES.md §2) */}
               {(r.status === "pending" || r.status === "expired") && (
                 <Button
-                  variant="tertiary"
+                  variant="primary"
+                  className="min-h-10 px-4"
                   disabled={act.isPending}
                   onClick={() => act.mutate({ id: r.id, action: "approve" })}
                 >
@@ -284,7 +288,8 @@ function Requests({ requests }: { requests: JoinRequest[] }) {
               )}
               {r.status === "pending" && (
                 <Button
-                  variant="tertiary"
+                  variant="danger"
+                  className="min-h-10 px-4"
                   disabled={act.isPending}
                   onClick={() => act.mutate({ id: r.id, action: "reject" })}
                 >
@@ -295,6 +300,7 @@ function Requests({ requests }: { requests: JoinRequest[] }) {
           </li>
         ))}
       </ul>
+      )}
     </section>
   );
 }

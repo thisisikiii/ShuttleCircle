@@ -41,11 +41,11 @@ export function PaymentsTab({ isSuper }: { isSuper: boolean }) {
                       {c.note && ` · ${c.note}`}
                     </p>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex gap-2">
                     <Button variant="primary" disabled={act.isPending} onClick={() => act.mutate({ id: c.id, action: "confirm" })}>
                       {p.confirm}
                     </Button>
-                    <Button variant="tertiary" disabled={act.isPending} onClick={() => act.mutate({ id: c.id, action: "reject" })}>
+                    <Button variant="danger" disabled={act.isPending} onClick={() => act.mutate({ id: c.id, action: "reject" })}>
                       {p.reject}
                     </Button>
                   </div>

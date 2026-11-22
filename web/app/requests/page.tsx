@@ -44,9 +44,9 @@ export default function RequestsPage() {
           return (
             <>
               {withdraw.isError && <ErrorAlert error={withdraw.error} />}
-              <ul>
+              <ul className="card divide-y divide-border px-5">
                 {requests.map((r) => (
-                  <li key={r.id} className="border-t border-border py-4">
+                  <li key={r.id} className="py-4">
                     <div className="flex flex-wrap items-start justify-between gap-2">
                       <div className="min-w-0">
                         <Link href={`/matches/${r.match_id}`} className="link font-medium">

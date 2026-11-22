@@ -42,9 +42,9 @@ function History({ admin }: { admin: boolean }) {
               {[...months].map(([month, matches]) => (
                 <section key={month} className="mb-6">
                   <h2 className="mb-2">{fmtMonth(`${month}-01`)}</h2>
-                  <ol className="ml-1 border-l border-border pl-4">
+                  <ol className="card divide-y divide-border px-5">
                     {matches.map((m) => (
-                      <li key={m.id} className="border-b border-border">
+                      <li key={m.id}>
                         <details>
                           <summary className="flex min-h-11 cursor-pointer flex-wrap items-center justify-between gap-x-4 py-2">
                             <span>

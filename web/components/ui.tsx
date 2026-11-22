@@ -5,16 +5,18 @@ import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAt
 import { errorText } from "@/lib/api";
 import { t } from "@/lib/strings";
 
-// DESIGN.md §9: primary = emerald fill, secondary = outline, tertiary = text.
+// DESIGN.md §9: pill buttons. primary = emerald fill, secondary = outline, tertiary = text, danger = rose tint.
 const variants = {
-  primary: "bg-accent px-5 text-on-accent shadow-md shadow-emerald-700/20 hover:brightness-110 active:scale-[0.99]",
-  secondary: "border border-control bg-surface px-4 text-fg hover:border-accent",
-  tertiary: "px-3 text-secondary hover:bg-accent/10",
+  primary:
+    "bg-accent px-6 text-on-accent shadow-lg shadow-emerald-700/25 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-emerald-700/30 hover:brightness-110",
+  secondary: "border-2 border-border bg-surface px-5 text-fg hover:border-accent/50 hover:bg-accent/5",
+  tertiary: "px-3.5 text-secondary hover:bg-accent/10",
+  danger: "bg-danger/10 px-5 text-danger hover:bg-danger/15",
 };
 type Variant = keyof typeof variants;
 
 export const buttonClass = (variant: Variant = "secondary") =>
-  `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl text-sm font-bold transition disabled:cursor-not-allowed disabled:opacity-40 ${variants[variant]}`;
+  `inline-flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-full text-sm font-bold whitespace-nowrap transition duration-200 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40 ${variants[variant]}`;
 
 export function Button({
   variant,
@@ -26,7 +28,7 @@ export function Button({
 
 // 16 px text on phones so iOS does not zoom on focus (DESIGN.md §10).
 export const controlClass =
-  "block min-h-11 w-full rounded-xl border border-control bg-surface px-3.5 text-base text-fg placeholder:text-muted aria-invalid:border-danger md:text-sm";
+  "block min-h-12 w-full rounded-2xl border-2 border-border bg-surface px-4 text-base text-fg transition placeholder:text-muted hover:border-control focus:border-accent focus:outline-none aria-invalid:border-danger md:text-sm";
 
 function Field({
   label,
@@ -111,8 +113,9 @@ const statusTone: Record<keyof typeof t.status, keyof typeof tones> = {
 export function Chip({ status }: { status: keyof typeof t.status }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-1 text-[0.6875rem] leading-4 font-bold whitespace-nowrap ${tones[statusTone[status]]}`}
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.6875rem] leading-4 font-bold whitespace-nowrap ${tones[statusTone[status]]}`}
     >
+      <span aria-hidden className="size-1.5 rounded-full bg-current" />
       {t.status[status]}
     </span>
   );
@@ -145,7 +148,7 @@ export function Alert({
   return (
     <div
       role={tone === "danger" ? "alert" : "note"}
-      className={`my-3 flex flex-wrap items-center justify-between gap-x-4 rounded-xl border px-3.5 py-2.5 text-sm font-medium ${tone === "danger" ? "border-danger/30 bg-danger/10 text-danger" : "border-border bg-surface"}`}
+      className={`my-3 flex flex-wrap items-center justify-between gap-x-4 rounded-2xl border px-4 py-3 text-sm font-medium ${tone === "danger" ? "border-danger/30 bg-danger/10 text-danger" : "border-accent/20 bg-accent/5"}`}
     >
       <p>{children}</p>
       {action}
@@ -171,7 +174,13 @@ export function ErrorAlert({ error, onRetry }: { error: unknown; onRetry?: () =>
 
 export function Empty({ children, action }: { children: ReactNode; action?: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-control bg-surface px-4 py-10 text-center text-muted">
+    <div className="rounded-3xl border-2 border-dashed border-border bg-surface px-4 py-10 text-center text-muted">
+      <span aria-hidden className="tile-icon mb-3 bg-lime/25 text-success">
+        <svg viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth="2" strokeLinecap="round">
+          <circle cx="12" cy="12" r="8" />
+          <path d="M8 13.5c2 2 6 2 8 0M9 9.5h.01M15 9.5h.01" />
+        </svg>
+      </span>
       <p>{children}</p>
       {action && <div className="mt-3">{action}</div>}
     </div>
@@ -217,14 +226,14 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** Summary strip: one tile per figure (wallet and finance). */
+/** Summary strip: one tile per figure (wallet and finance). The first tile is the highlight, lime like Fresyls. */
 export function Strip({ items, className }: { items: { label: string; value: ReactNode }[]; className: string }) {
   return (
     <dl className={`mb-6 grid gap-3 ${className}`}>
-      {items.map((item) => (
-        <div key={item.label} className="card p-4">
+      {items.map((item, i) => (
+        <div key={item.label} className={`card p-5 ${i === 0 ? "border-lime bg-lime [--color-label:#1a2e05]" : ""}`}>
           <dt className="label">{item.label}</dt>
-          <dd className="mono mt-1 text-xl font-extrabold text-primary">{item.value}</dd>
+          <dd className="mono mt-1.5 text-2xl font-extrabold tracking-tight text-primary">{item.value}</dd>
         </div>
       ))}
     </dl>
@@ -299,7 +308,7 @@ export function Dialog({
       ref={ref}
       onClose={onClose}
       aria-labelledby={titleId}
-      className="m-auto w-[min(28rem,calc(100vw-2rem))] rounded-3xl border border-border bg-surface p-6 text-fg shadow-2xl backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm"
+      className="m-auto max-h-[92dvh] w-[min(28rem,calc(100vw-2rem))] overflow-y-auto rounded-[2rem] border border-border bg-surface p-6 text-fg shadow-2xl backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm max-sm:mb-0 max-sm:w-full max-sm:max-w-none max-sm:rounded-b-none max-sm:pb-[max(1.5rem,env(safe-area-inset-bottom))]"
     >
       <h2 id={titleId} className="mb-3">
         {title}

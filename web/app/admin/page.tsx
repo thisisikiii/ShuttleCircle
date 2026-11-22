@@ -30,14 +30,14 @@ function Admin({ me }: { me: Member }) {
   return (
     <>
       <PageHeader title={t.admin.title} />
-      <div role="tablist" aria-label={t.admin.title} className="mb-6 flex gap-1 overflow-x-auto border-b border-border">
+      <div role="tablist" aria-label={t.admin.title} className="mb-6 flex w-fit max-w-full gap-1 overflow-x-auto rounded-full border border-border bg-surface p-1 shadow-sm">
         {TABS.filter((k) => k !== "whatsapp" || isSuper).map((k) => (
           <button
             key={k}
             role="tab"
             aria-selected={tab === k}
             onClick={() => setTab(k)}
-            className="-mb-px min-h-11 shrink-0 cursor-pointer border-b-2 border-transparent px-3 text-sm font-semibold text-muted aria-selected:border-accent aria-selected:font-bold aria-selected:text-accent"
+            className="min-h-10 shrink-0 cursor-pointer rounded-full px-4 text-sm font-semibold text-muted transition hover:text-primary aria-selected:bg-primary aria-selected:font-bold aria-selected:text-white"
           >
             {t.admin[k]}
           </button>

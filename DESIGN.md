@@ -24,7 +24,7 @@
 
 ## 3. Visual Identity & Product-Type Adaptation
 
-The system adapts a **dashboard-first** grammar: persistent left rail (role-scoped nav), a top context bar (current match / date range), and a main scanning region. Calendar and request list are the two hero surfaces. Distinctiveness comes from **typographic contrast and hairline grid discipline**, not decoration: no gradients, no frosted glass, no rounded-card stacks. Status is always a text label with a semantic color chip, never a color-alone signal.
+The system adapts a **dashboard-first** grammar: persistent left rail (role-scoped nav), a top context bar (current match / date range), and a main scanning region. Calendar and request list are the two hero surfaces. Distinctiveness comes from **typographic contrast, rounded panels and one lime highlight per screen**, not decoration. Since the 2026-11-23 refresh (§16) panels are soft 24 px cards and buttons are pills; there are still no gradient fills on light pages and no decorative glass. Status is always a text label with a semantic color chip, never a color-alone signal.
 
 ## 4. Semantic Color System
 
@@ -65,7 +65,7 @@ Court palette, from the HTML styling reference the owner supplied on 2026-11-17:
 | caption | 0.8125rem | 500 | 1.4 | 0 | Hints, secondary lines |
 | label | 0.6875rem | 700 | 1.4 | 0.08em, uppercase | Field labels, table heads, tile labels |
 
-**Shape and motion:** buttons and inputs are 12px rounded rectangles; cards are 16px with a 1px border and a soft shadow; dialogs and gateway panels are 24px; chips are pills. The only decorative motion is the dashed shuttle trajectory on the sign-in gateway. Motion respects `prefers-reduced-motion`.
+**Shape and motion:** buttons, nav items, tabs and chips are pills; inputs are 16 px rounded with a 2 px border that turns emerald on focus; cards are 24 px with a 1 px border and a soft drop shadow; dialogs, the wallet hero and gateway panels are 32 px. Primary buttons lift 2 px on hover; every button presses in slightly when tapped. The only decorative motion is the dashed shuttle trajectory on the sign-in gateway. Motion respects `prefers-reduced-motion`.
 
 Not taken from the reference: its Court Arranger, skill ratings, win leaderboard, demo quick-login passes and player switcher. They are features outside PRD.md, not styling.
 
@@ -74,7 +74,7 @@ Not taken from the reference: its Court Arranger, skill ratings, win leaderboard
 - **No repeated "Hero → 3 Cards".** Each surface uses a structural pattern matched to its task:
   - *Calendar:* month grid (desktop) / agenda list (mobile).
   - *Request list:* master/detail split-pane (list left, request detail + approve/reject right).
-  - *Wallet:* ledger table with a summary strip above.
+  - *Wallet:* a deep-green hero card with the balance, membership and free-seat counts and the top-up form (amount, quick amounts Rp 50.000 / 100.000 / 200.000, *Top-up*); below it the ledger as a list (green + for credits, − for debits) beside the membership, donation and reward panels. The admin finance dashboard follows at the bottom.
   - *Match history:* timeline grouped by month, expandable roster rows.
   - *Match create/edit:* single-column form with a sticky summary aside.
 - **Grid & Spacing:** 12-col grid, 24px gutters, 8px base spacing unit (8/16/24/32/48). Max content width 1280px; forms capped at 640px.
@@ -84,21 +84,26 @@ Not taken from the reference: its Court Arranger, skill ratings, win leaderboard
 | Avoid | Prefer |
 |:---|:---|
 | Generic three-card feature grids | Structured tables, split-pane, calendar grid |
-| Every section in a rounded card | Whitespace + hairline `--color-border` dividers |
+| Card inside card | One card per list or panel; rows inside it split by hairline dividers |
 | Purple/blue gradient backgrounds | Flat `--color-bg` with sparse semantic accents |
 | Decorative icons/badges | Status text chips, functional iconography only |
 | Decorative animation | Opacity/transform feedback only |
 
 ## 8. Card & Container Discipline
 
-Cards are **allowed only** for: calendar day cells, request list rows (as bordered list items, not floating cards), and wallet summary tiles. Cards are **forbidden** for: form sections, history timeline, page headers, and any standard text block. **No card nesting.** Panels use a single hairline border; interior grouping uses spacing only.
+Cards are **allowed** for: lists (requests, notifications, roster, history, ledger, approvals: one card per list, rows split by hairlines), summary tiles, the match facts panel (each fact a tinted tile inside it), and side panels that hold one action (join, membership, donation, rewards). Cards are **forbidden** for: page headers and plain text blocks. **No card nesting**, except the tinted fact tiles, which have no border or shadow.
 
 ## 9. Component Rules & Action Hierarchy
 
-- **Primary:** emerald fill with a white bold label and a soft emerald shadow, one per viewport (e.g., *Approve & Charge*, *Pay Now*). On dark areas the fill is lime with a near-black label.
-- **Secondary:** white with a 1px slate outline; the outline turns emerald on hover.
-- **Tertiary:** text-only emerald.
-- **States:** hover = slight brighten; focus = 2px emerald ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = 4% tint; active nav item = emerald pill (top bar) or emerald label (phone tab bar). All contrast meets WCAG AA.
+- **Primary:** emerald pill with a white bold label and a soft emerald shadow, one per viewport (e.g., *Approve & Charge*, *Pay Now*). On dark areas the fill is lime with a near-black label.
+- **Secondary:** white pill with a 2 px slate outline; the outline turns emerald and the fill tints on hover.
+- **Tertiary:** text-only emerald, with a tinted pill on hover.
+- **Danger:** rose-tinted pill with a rose label, for *Tolak*, *Batalkan pertandingan* and rejecting a payment, so the destructive choice never looks like the safe one.
+- **Links:** emerald bold, no underline until hover.
+- **Highlight tile:** the first figure of a summary strip is lime with near-black text; the rest are white cards.
+- **Icon tile:** a 40 px lime-tinted rounded square with a stroke icon, in front of panel titles, ledger rows and empty states.
+- **Choices:** a small fixed set (payment method, top-up amount) is a row of pills, not a dropdown; the chosen pill is filled.
+- **States:** hover = slight brighten; focus = 2px emerald ring with 2px offset; disabled = 40% opacity + `cursor:not-allowed`; selected row = 4% tint; active nav item = lime pill with near-black label (top bar) or lime label under a lime-tinted icon pill (phone tab bar); admin tabs = segmented pill group, active tab filled slate-900. All contrast meets WCAG AA.
 - **Navigation:** a sticky dark top bar with the logo and, from 768 px, a pill group of nav items (icons only below 1280 px, with labels above). Phones keep the bottom tab bar.
 - **Sign-in gateway:** login, register and the guest nickname form share one full-screen dark page: court-line backdrop, the form in a glass card with a three-way mode switch, and a club guide (FAQ) built from the rules in FEATURES.md.
 - **Calendar hero:** a deep-green banner with the greeting, the create action for hosts, and two counts (open sessions, scheduled).
@@ -153,3 +158,7 @@ No fake testimonials, logos, statistics, or screenshots. All copy derives from P
 - [ ] Design feels specific to the product.
 - [ ] A coding agent can implement the design without inventing major visual decisions.
 - [ ] Design System is cohesive and reusable.
+
+## 16. Refresh 2026-11-23
+
+The owner found the buttons, links and wallet dated. The refresh keeps the court palette, Inter and the dark chrome, and borrows the shapes of the owner's other apps: Fresyls (pill buttons, 24–32 px cards, lime highlight tile, dark active nav with lime) and Personifinn (balance hero card, ledger rows with signed amounts, dialogs that rise from the bottom on phones). Changes: §5 shapes, §8 card rules, §9 button variants and choices, the wallet layout in §6, the payment dialog (amount in a lime box, QR in a dashed frame, accounts with copy buttons, method as pills) and a bottom-sheet dialog below 640 px.

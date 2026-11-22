@@ -51,9 +51,9 @@ function Approvals() {
             // ≥1024 px: split pane. Below: the list, then the detail as a full page (DESIGN.md §10).
             <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
               <div className={selected ? "max-lg:hidden" : ""}>
-                <ul className="border border-border bg-surface">
+                <ul className="card overflow-hidden p-1.5">
                   {q.items.map((r) => (
-                    <li key={r.id} className="border-b border-border last:border-b-0">
+                    <li key={r.id}>
                       <button
                         type="button"
                         aria-current={r.id === selectedId || undefined}
@@ -62,7 +62,7 @@ function Approvals() {
                           setOutcome(null);
                           act.reset();
                         }}
-                        className="block min-h-11 w-full cursor-pointer border-l-2 border-transparent px-3 py-2 text-left hover:bg-primary/6 aria-[current]:border-accent aria-[current]:bg-primary/4"
+                        className="block min-h-11 w-full cursor-pointer rounded-2xl px-4 py-2.5 text-left transition hover:bg-primary/5 aria-[current]:bg-lime/25"
                       >
                         <span className="block font-medium">{r.player.name}</span>
                         <span className="caption block text-muted">
@@ -76,7 +76,7 @@ function Approvals() {
               </div>
 
               {selected ? (
-                <section>
+                <section className="card self-start p-5">
                   <Button variant="tertiary" className="mb-2 -ml-2 lg:hidden" onClick={() => setSelectedId(null)}>
                     ‹ {t.common.back}
                   </Button>
@@ -119,6 +119,7 @@ function Approvals() {
                       {t.approvals.approve}
                     </Button>
                     <Button
+                      variant="danger"
                       disabled={act.isPending}
                       onClick={() => act.mutate({ id: selected.id, action: "reject" })}
                     >

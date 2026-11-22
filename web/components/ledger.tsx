@@ -4,7 +4,7 @@ import { usePaged } from "@/lib/api";
 import { fmtDateTime, rupiah } from "@/lib/format";
 import { t } from "@/lib/strings";
 import type { LedgerEntry } from "@/lib/types";
-import { DataTable, Empty, Load, LoadMore } from "./ui";
+import { Empty, Load, LoadMore } from "./ui";
 
 /** Wallet ledger: the caller's own (`/wallets/me/transactions`) or a member's, for admins. */
 export function Ledger({ path }: { path: string }) {
@@ -16,20 +16,29 @@ export function Ledger({ path }: { path: string }) {
           <Empty>{t.wallet.ledgerEmpty}</Empty>
         ) : (
           <>
-            <DataTable
-              rows={q.items}
-              rowKey={(e) => e.id}
-              columns={[
-                { head: t.wallet.date, cell: (e) => fmtDateTime(e.created_at), className: "caption text-muted" },
-                { head: t.wallet.type, cell: (e) => t.txnType[e.txn_type], className: "max-md:order-first max-md:grow" },
-                { head: t.wallet.note, cell: (e) => e.note, className: "max-md:w-full max-md:text-muted" },
-                {
-                  head: t.wallet.amount,
-                  cell: (e) => `${e.amount_idr > 0 ? "+" : "−"}${rupiah(Math.abs(e.amount_idr))}`,
-                  className: "mono md:text-right max-md:order-first",
-                },
-              ]}
-            />
+            <ul className="card divide-y divide-border px-2">
+              {q.items.map((e) => {
+                const credit = e.amount_idr > 0;
+                return (
+                  <li key={e.id} className="flex items-center gap-3 px-2 py-3">
+                    <span aria-hidden className={`tile-icon text-lg font-extrabold ${credit ? "bg-lime/25 text-success" : "bg-danger/10 text-danger"}`}>
+                      {credit ? "+" : "−"}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-primary">{t.txnType[e.txn_type]}</p>
+                      <p className="caption truncate text-muted">
+                        {fmtDateTime(e.created_at)}
+                        {e.note && ` · ${e.note}`}
+                      </p>
+                    </div>
+                    <p className={`mono shrink-0 ${credit ? "text-success" : "text-primary"}`}>
+                      {credit ? "+" : "−"}
+                      {rupiah(Math.abs(e.amount_idr))}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
             <LoadMore q={q} />
           </>
         )

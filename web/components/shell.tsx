@@ -253,7 +253,7 @@ function NavIcon({ item }: { item: NavItem }) {
         <path d={item.icon} />
       </svg>
       {!!item.badge && (
-        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-lime px-1 text-center text-[0.6875rem] leading-4 font-bold text-slate-950">
+        <span className="absolute -top-1.5 -right-2 min-w-4 rounded-full bg-rose-500 px-1 text-center text-[0.6875rem] leading-4 font-bold text-white ring-2 ring-slate-900">
           {item.badge}
           <span className="sr-only"> {t.nav.unread}</span>
         </span>
@@ -273,14 +273,14 @@ function Layout({ children }: { children: ReactNode }) {
       : undefined;
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="sticky top-0 z-40 border-b border-slate-800 bg-slate-900 text-white shadow-lg">
+      <header className="sticky top-0 z-40 border-b border-white/5 bg-slate-900/95 text-white shadow-lg backdrop-blur-lg">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <Link href="/" aria-label={t.app.name}>
             <Brand />
           </Link>
           <nav
             aria-label={t.nav.label}
-            className="hidden items-center gap-1 rounded-xl border border-slate-700/70 bg-slate-800/80 p-1 md:flex [&_svg]:size-5"
+            className="hidden items-center gap-1 rounded-full border border-white/10 bg-white/5 p-1 md:flex [&_svg]:size-5"
           >
             {items.map((i) => (
               <Link
@@ -288,7 +288,7 @@ function Layout({ children }: { children: ReactNode }) {
                 href={i.href}
                 aria-current={current(i.href)}
                 title={i.label}
-                className="flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-slate-300 hover:bg-slate-700/50 hover:text-white aria-[current]:bg-emerald-700 aria-[current]:text-white aria-[current]:shadow-sm"
+                className="flex min-h-10 items-center gap-2 rounded-full px-3.5 text-sm font-semibold text-slate-300 transition hover:bg-white/10 hover:text-white aria-[current]:bg-lime aria-[current]:font-bold aria-[current]:text-slate-950 aria-[current]:shadow-[0_0_24px_-6px_rgb(163_230_53/0.7)]"
               >
                 <NavIcon item={i} />
                 <span className="max-xl:sr-only">{i.label}</span>
@@ -307,7 +307,7 @@ function Layout({ children }: { children: ReactNode }) {
 
       <nav
         aria-label={t.nav.label}
-        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-slate-800 bg-slate-900 pb-[env(safe-area-inset-bottom)] md:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-white/5 bg-slate-900/95 px-1 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg md:hidden"
       >
         {items
           .filter((i) => i.tab)
@@ -316,9 +316,11 @@ function Layout({ children }: { children: ReactNode }) {
               key={i.href}
               href={i.href}
               aria-current={current(i.href)}
-              className="flex min-h-14 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 text-[0.6875rem] font-medium text-slate-400 aria-[current]:font-semibold aria-[current]:text-emerald-400"
+              className="group flex min-h-16 min-w-0 flex-1 flex-col items-center justify-center gap-1 text-[0.6875rem] font-medium text-slate-400 aria-[current]:font-bold aria-[current]:text-lime"
             >
-              <NavIcon item={i} />
+              <span className="rounded-full px-4 py-1 transition group-aria-[current]:bg-lime/15">
+                <NavIcon item={i} />
+              </span>
               {i.label}
             </Link>
           ))}

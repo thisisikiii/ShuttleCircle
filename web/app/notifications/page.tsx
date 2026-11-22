@@ -31,9 +31,9 @@ function Notifications() {
             <Empty>{t.notifications.empty}</Empty>
           ) : (
             <>
-              <ul>
+              <ul className="card divide-y divide-border px-5">
                 {q.items.map((n) => (
-                  <li key={n.id} className="border-t border-border py-3">
+                  <li key={n.id} className="py-3.5">
                     <p className={n.read_at ? "" : "font-semibold"}>
                       {!n.read_at && <span className="caption mr-2 text-warning">{t.notifications.unread}</span>}
                       {n.payload.title}
