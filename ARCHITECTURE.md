@@ -22,7 +22,10 @@ Four containers on one VPS, one Docker Compose file: `caddy`, `web`, `api`, `db`
 | `caddy` | TLS, routing, compression | ~30 MB |
 | `api` | HTTP API and background worker in one Rust binary (DEC-006) | < 100 MB |
 | `web` | Next.js standalone server (DEC-007) | ~150 MB |
-| `db` | PostgreSQL 17 | ~100 MB |
+| `db` | PostgreSQL 17 (Alpine image) | ~100 MB |
+| `waha` (optional, WhatsApp) | WAHA gateway, `noweb` image without Chromium (DEC-011) | ~400 MB |
+
+Measured on 2026-11-22 (idle): api 3 MB, web 63 MB, db 62 MB, caddy 19 MB, waha 426 MB. About 150 MB without WhatsApp.
 
 Minimum VPS: 2 GB RAM, 20 GB disk (more if videos are kept, DEC-017).
 

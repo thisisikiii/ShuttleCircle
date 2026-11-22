@@ -64,7 +64,7 @@ services:
     restart: unless-stopped
 
   db:
-    image: postgres:17
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: shuttlecircle
@@ -79,9 +79,9 @@ services:
       retries: 10
 
   # Optional WhatsApp gateway (DEC-011). Starts only with COMPOSE_PROFILES=whatsapp in .env.
-  # Not published on any port: only the API talks to it. Uses about 450 MB of memory.
+  # Not published on any port: only the API talks to it. Uses about 350 MB of memory.
   waha:
-    image: devlikeapro/waha:latest
+    image: devlikeapro/waha:noweb   # NOWEB engine only, no Chromium
     profiles: ["whatsapp"]
     restart: unless-stopped
     environment:
