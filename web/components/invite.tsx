@@ -21,6 +21,9 @@ export function InviteForm({ matchId }: { matchId?: string }) {
     },
   );
   const error = fieldErrors(send.error).contacts;
+  // Same link the API puts in the message; the browser origin is the public URL.
+  const link = typeof window === "undefined" ? "" : `${window.location.origin}${matchId ? `/matches/${matchId}` : "/register"}`;
+  const [copied, setCopied] = useState(false);
   return (
     <form
       className="max-w-[640px] space-y-3"
@@ -29,6 +32,30 @@ export function InviteForm({ matchId }: { matchId?: string }) {
         send.mutate();
       }}
     >
+      <div>
+        <label htmlFor={`${id}-link`} className="label mb-1.5 block">
+          {t.invite.link}
+        </label>
+        <div className="flex gap-2">
+          <input
+            id={`${id}-link`}
+            readOnly
+            value={link}
+            onFocus={(e) => e.target.select()}
+            aria-describedby={`${id}-link-hint`}
+            className={`${controlClass} min-w-0`}
+          />
+          <Button
+            className="shrink-0"
+            onClick={() => navigator.clipboard?.writeText(link).then(() => setCopied(true))}
+          >
+            {copied ? t.invite.copied : t.invite.copy}
+          </Button>
+        </div>
+        <p id={`${id}-link-hint`} className="caption mt-1 text-muted">
+          {t.invite.linkHint}
+        </p>
+      </div>
       <p className="text-muted">{matchId ? t.invite.matchIntro : t.invite.registerIntro}</p>
       <div>
         <label htmlFor={id} className="label mb-1.5 block">

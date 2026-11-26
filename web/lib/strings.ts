@@ -312,6 +312,10 @@ export const t = {
     sent: "Terkirim",
     failed: "Gagal",
     close: "Tutup",
+    link: "Tautan undangan",
+    linkHint: "Salin lalu bagikan sendiri, misalnya di grup WhatsApp.",
+    copy: "Salin tautan",
+    copied: "Tersalin",
   },
   rotation: {
     title: "Rotasi lapangan",
