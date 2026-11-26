@@ -7,17 +7,20 @@ import { Button, ErrorAlert, controlClass } from "./ui";
 
 type Result = { contact: string; sent: boolean; error: string | null };
 
+const MAX_CONTACTS = 20; // the API's limit per request
+
 /** Sends invitations by email or WhatsApp: to one match when `matchId` is given, else to create an account. */
 export function InviteForm({ matchId }: { matchId?: string }) {
   const id = useId();
-  const [text, setText] = useState("");
+  const [contacts, setContacts] = useState([""]);
   const [results, setResults] = useState<Result[]>([]);
   const send = useAct(
-    () => api.post<Result[]>("/invitations", { match_id: matchId, contacts: text.split("\n") }),
+    () => api.post<Result[]>("/invitations", { match_id: matchId, contacts }),
     (r) => {
       setResults(r.data);
       // keep only the contacts that failed, ready to correct and resend
-      setText(r.data.filter((x) => !x.sent).map((x) => x.contact).join("\n"));
+      const failed = r.data.filter((x) => !x.sent).map((x) => x.contact);
+      setContacts(failed.length ? failed : [""]);
     },
   );
   const error = fieldErrors(send.error).contacts;
@@ -57,24 +60,43 @@ export function InviteForm({ matchId }: { matchId?: string }) {
         </p>
       </div>
       <p className="text-muted">{matchId ? t.invite.matchIntro : t.invite.registerIntro}</p>
-      <div>
-        <label htmlFor={id} className="label mb-1.5 block">
-          {t.invite.contacts}
-        </label>
-        <textarea
-          id={id}
-          rows={4}
-          required
-          aria-invalid={!!error}
-          aria-describedby={`${id}-hint`}
-          className={`${controlClass} py-2.5`}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
+      <fieldset aria-describedby={`${id}-hint`}>
+        <legend className="label mb-1.5">{t.invite.contacts}</legend>
+        <ul className="space-y-2">
+          {contacts.map((c, i) => (
+            <li key={i} className="flex gap-2">
+              <input
+                aria-label={t.invite.contactN(i + 1)}
+                required={i === 0}
+                aria-invalid={!!error}
+                autoComplete="off"
+                className={`${controlClass} min-w-0`}
+                value={c}
+                onChange={(e) => setContacts(contacts.map((x, j) => (j === i ? e.target.value : x)))}
+              />
+              {contacts.length > 1 && (
+                <Button
+                  variant="danger"
+                  className="w-11 shrink-0 px-0"
+                  aria-label={t.invite.remove(i + 1)}
+                  onClick={() => setContacts(contacts.filter((_, j) => j !== i))}
+                >
+                  ✕
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+        {contacts.length < MAX_CONTACTS && (
+          <Button variant="tertiary" className="mt-2 -ml-1" onClick={() => setContacts([...contacts, ""])}>
+            <span aria-hidden className="text-lg leading-none">+</span>
+            {t.invite.add}
+          </Button>
+        )}
         <p id={`${id}-hint`} className={`caption mt-1 ${error ? "text-danger" : "text-muted"}`}>
           {error ?? t.invite.hint}
         </p>
-      </div>
+      </fieldset>
       {send.isError && !error && <ErrorAlert error={send.error} />}
       <Button type="submit" variant="primary" disabled={send.isPending}>
         {t.invite.send}
