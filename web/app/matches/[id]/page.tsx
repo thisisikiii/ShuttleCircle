@@ -122,7 +122,7 @@ function Detail({ m }: { m: MatchDetail }) {
         <div className="space-y-8">
           {m.roster && <Roster m={m} editable={!!m.can_manage && started} />}
           {m.roster && m.status !== "cancelled" && <RotationSection matchId={m.id} manage={!!m.can_manage} />}
-          {m.can_manage && m.requests && <Requests requests={m.requests} />}
+          {m.can_manage && m.requests && <Requests requests={m.requests} admin={atLeast(me, "admin")} />}
           <MediaSection m={m} />
         </div>
       </div>
@@ -250,12 +250,28 @@ function Roster({ m, editable }: { m: MatchDetail; editable: boolean }) {
   );
 }
 
-function Requests({ requests }: { requests: JoinRequest[] }) {
+function Requests({ requests, admin }: { requests: JoinRequest[]; admin: boolean }) {
   const act = useAct(({ id, action }: { id: string; action: "approve" | "reject" }) =>
     api.post(`/join-requests/${id}/${action}`),
   );
+  const [paying, setPaying] = useState<JoinRequest | null>(null);
+  const markPaid = useAct(
+    () => api.post(`/join-requests/${paying!.id}/mark-paid`),
+    () => setPaying(null),
+  );
   return (
     <section>
+      <ConfirmDialog
+        open={!!paying}
+        onClose={() => {
+          setPaying(null);
+          markPaid.reset();
+        }}
+        title={t.approvals.markPaidTitle}
+        body={paying ? t.approvals.markPaidBody(paying.player.name) : ""}
+        confirmLabel={t.approvals.markPaid}
+        action={markPaid}
+      />
       <h2 className="mb-2">{t.match.requests}</h2>
       {requests.length === 0 && <p className="text-muted">{t.approvals.empty}</p>}
       {act.isError && <ErrorAlert error={act.error} />}
@@ -294,6 +310,11 @@ function Requests({ requests }: { requests: JoinRequest[] }) {
                   onClick={() => act.mutate({ id: r.id, action: "reject" })}
                 >
                   {t.approvals.reject}
+                </Button>
+              )}
+              {admin && (r.status === "awaiting_payment" || r.status === "expired") && (
+                <Button className="min-h-10 px-4" onClick={() => setPaying(r)}>
+                  {t.approvals.markPaid}
                 </Button>
               )}
             </div>

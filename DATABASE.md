@@ -303,6 +303,10 @@ CREATE UNIQUE INDEX rotation_games_one_playing ON rotation_games(match_id, court
 
 Games played and minutes played are counted from `done` games, never stored on the player. The live score of a running game is kept in `score_a` and `score_b`; the leaderboard is computed from finished games and has no table. Gender and level are per match, set by the host on the board; they are not part of the user profile.
 
+### Seat paid outside the app (migration `0006_cash_payment.sql`, DEC-026)
+
+`payment_method` gains `cash`: an admin confirmed the seat as paid outside the app. `join_requests` gains `paid_at` (`timestamptz`), set when an admin marks the seat paid; the finance summary adds these seats to cash in and match fees by `paid_at`.
+
 ### Scoring format (migration `0005_scoring_format.sql`, FR-23)
 
 `matches` gains `rotation_best_of` (1, 3 or 5), `rotation_points` (1 to 99) and `rotation_cap` (points to 99; equal to points = no deuce); defaults 1, 21, 30. `rotation_games` gains `best_of`, `points` and `cap` (copied from the match when the game starts) and `sets` (`jsonb`, finished sets as `[[a, b], …]`). While a game runs, `score_a` and `score_b` hold the set in play; a finished game keeps its whole result in `sets` with both scores null. Games finished before this migration keep their single score in `score_a` and `score_b`, and are read as a one-set result.

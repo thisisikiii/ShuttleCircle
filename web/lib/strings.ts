@@ -41,7 +41,7 @@ export const t = {
   },
   role: { member: "Anggota", host: "Host", admin: "Admin", superadmin: "Superadmin" },
   matchType: { beginner_friendly: "Ramah pemula", intermediate: "Menengah" },
-  paymentMethod: { membership: "Keanggotaan", reward: "Kursi gratis", wallet: "Dompet", gateway: "QRIS / transfer" },
+  paymentMethod: { membership: "Keanggotaan", reward: "Kursi gratis", wallet: "Dompet", gateway: "QRIS / transfer", cash: "Lunas, dikonfirmasi admin" },
   txnType: {
     topup: "Top-up",
     manual_credit: "Kredit tunai",
@@ -205,6 +205,10 @@ export const t = {
     hint: "Menyetujui langsung memotong dompet pemain. Jika saldo kurang, kursi ditahan 30 menit untuk pembayaran.",
     approve: "Setujui & tagih",
     reject: "Tolak",
+    markPaid: "Tandai lunas",
+    markPaidTitle: "Tandai sudah bayar?",
+    markPaidBody: (name: string) =>
+      `Kursi ${name} dikonfirmasi sebagai lunas (tunai atau transfer yang sudah kamu terima). Dompet pemain tidak dipotong. Lanjutkan hanya bila uangnya sudah masuk.`,
     player: "Pemain",
     match: "Pertandingan",
     requestedAt: "Diminta",

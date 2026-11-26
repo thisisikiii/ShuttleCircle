@@ -55,6 +55,7 @@ docker compose -f compose.yaml -f test/compose.test.yaml up -d --build
 python3 test/e2e.py         # 124 API checks through Caddy
 node test/ui_smoke.cjs      # needs playwright-core and Chromium
 python3 test/payment_check.py                                 # manual payment: details, QRIS, claims (sandbox, before seeding)
+python3 test/mark_paid_check.py                               # admin marks a held or expired seat paid (safe on dev)
 python3 test/finance_check.py                                 # finance dashboard endpoints and Excel report
 python3 test/rotation_check.py                                # court rotation, scoring format and sets, 69 API checks
 NODE_TLS_REJECT_UNAUTHORIZED=0 node test/ui_rotation.cjs     # court rotation board as host and player

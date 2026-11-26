@@ -196,6 +196,14 @@ This document records the selected answers and supplied text. `Answered` means a
 
 **Not included:** switching ends between sets, service court and server indicator, a format per court or per game, offline scoring.
 
+## DEC-026 — Admin marks a seat paid without a claim
+
+**Status:** Requested by the owner on 2026-11-26
+
+**Default:** Players sometimes pay cash or transfer without tapping **Saya sudah bayar**, and guests have no wallet, so the claim and manual-credit paths cannot settle them. An admin (not a host, because money is involved) confirms the request directly with **Tandai lunas** on the match page, after a confirmation dialog. The seat is recorded as `cash` at the match price with no ledger entry, so wallet balances and the ledger check stay untouched; the finance dashboard adds these seats to cash in and match fees. An expired hold can be marked only while the match is open and has room.
+
+**Not included:** a different amount than the match price, undoing a mark, marking from the Approvals page. If a match with such a seat is cancelled, a member is refunded to the wallet as for any paid seat; a guest is not refunded in the app.
+
 ---
 
 ## Inputs still required from the owner

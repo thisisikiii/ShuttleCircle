@@ -91,11 +91,13 @@ async fn summary(st: &AppState, q: &RangeQ) -> R<Value> {
         "WITH d AS (SELECT coalesce($1::date, date_trunc('month', now() AT TIME ZONE 'Asia/Jakarta')::date) AS d1, \
                            coalesce($2::date, (now() AT TIME ZONE 'Asia/Jakarta')::date) AS d2), \
               r AS (SELECT d1, d2, d1::timestamp AT TIME ZONE 'Asia/Jakarta' AS a, (d2 + 1)::timestamp AT TIME ZONE 'Asia/Jakarta' AS b FROM d), \
-              t AS (SELECT txn_type, sum(amount_idr) AS s FROM wallet_txns, r WHERE created_at >= r.a AND created_at < r.b GROUP BY 1) \
+              t AS (SELECT txn_type, sum(amount_idr) AS s FROM wallet_txns, r WHERE created_at >= r.a AND created_at < r.b GROUP BY 1), \
+              k AS (SELECT coalesce(sum(paid_idr), 0) AS s FROM join_requests, r \
+                    WHERE payment_method = 'cash' AND status = 'confirmed' AND paid_at >= r.a AND paid_at < r.b) \
          SELECT jsonb_build_object( \
            'from', r.d1, 'to', r.d2, \
-           'cash_in_idr', coalesce((SELECT sum(s) FROM t WHERE txn_type IN ('topup','manual_credit')), 0), \
-           'fee_income_idr', coalesce(-(SELECT sum(s) FROM t WHERE txn_type IN ('match_payment','refund')), 0), \
+           'cash_in_idr', coalesce((SELECT sum(s) FROM t WHERE txn_type IN ('topup','manual_credit')), 0) + (SELECT s FROM k), \
+           'fee_income_idr', coalesce(-(SELECT sum(s) FROM t WHERE txn_type IN ('match_payment','refund')), 0) + (SELECT s FROM k), \
            'membership_income_idr', coalesce(-(SELECT sum(s) FROM t WHERE txn_type = 'membership'), 0), \
            'donation_idr', coalesce(-(SELECT sum(s) FROM t WHERE txn_type = 'donation'), 0), \
            'court_cost_idr', coalesce((SELECT sum(court_cost_per_hour_idr * duration_hours) FROM matches \
@@ -180,7 +182,7 @@ pub async fn report_xlsx(State(st): State<AppState>, m: Member, Query(q): Query<
         ws.write_string(1, 0, format!("Periode {from} s.d. {to}")).map_err(x)?;
         let e = &sum["expenses"];
         let rows = [
-            ("Kas masuk (top-up dan kredit manual)", n(&sum["cash_in_idr"])),
+            ("Kas masuk (top-up, kredit manual, kursi tunai)", n(&sum["cash_in_idr"])),
             ("Pendapatan biaya main", n(&sum["fee_income_idr"])),
             ("Pendapatan keanggotaan", n(&sum["membership_income_idr"])),
             ("Donasi", n(&sum["donation_idr"])),

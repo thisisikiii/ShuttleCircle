@@ -51,7 +51,7 @@ export type JoinRequest = {
   price_idr: number;
   player: { kind: "guest" | "member"; name: string; user_id: string | null };
   status: RequestStatus;
-  payment_method: "membership" | "reward" | "wallet" | "gateway" | null;
+  payment_method: "membership" | "reward" | "wallet" | "gateway" | "cash" | null;
   hold_expires_at: string | null;
   conversion_required: boolean;
   games_played: number | null;

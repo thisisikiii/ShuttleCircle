@@ -107,6 +107,7 @@ Match object:
 | `GET /join-requests?status=pending` | Approver | Queue across the matches the caller may approve |
 | `POST /join-requests/{id}/approve` | Approver | See below |
 | `POST /join-requests/{id}/reject` | Approver | `pending` → `rejected`. `409` otherwise |
+| `POST /join-requests/{id}/mark-paid` | Admin | `awaiting_payment` or `expired` → `confirmed`, `payment_method: "cash"`, paid outside the app; no wallet movement. Expired needs an open match with room (`409 MATCH_NOT_OPEN`, `MATCH_FULL`); `409 ALREADY_PROCESSED` otherwise (AC-F5-M6) |
 | `POST /join-requests/{id}/cancel` | Owner | Withdraw `pending` or `awaiting_payment` |
 | `POST /join-requests/{id}/pay` | Owner (member) | See below |
 

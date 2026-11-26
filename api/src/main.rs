@@ -116,6 +116,7 @@ fn router(st: AppState) -> Router {
         .route("/join-requests", get(requests::queue))
         .route("/join-requests/{id}/approve", post(requests::approve))
         .route("/join-requests/{id}/reject", post(requests::reject))
+        .route("/join-requests/{id}/mark-paid", post(requests::mark_paid))
         .route("/join-requests/{id}/cancel", post(requests::cancel))
         .route("/history", get(matches::history))
         .route("/wallets/me", get(wallet::my_wallet))

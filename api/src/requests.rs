@@ -184,6 +184,54 @@ pub async fn approve(State(st): State<AppState>, m: Member, Path(id): Path<Uuid>
     Ok(ok(v))
 }
 
+/// Admin confirms a held (or expired) seat paid outside the app, for members and guests alike.
+/// No claim and no wallet movement: the seat is recorded as paid in cash at the match price.
+pub async fn mark_paid(State(st): State<AppState>, m: Member, Path(id): Path<Uuid>) -> R<Json<Value>> {
+    m.need(Role::Admin)?;
+    let mut tx = st.db.begin().await?;
+    let match_id: Uuid = sqlx::query_scalar("SELECT match_id FROM join_requests WHERE id = $1").bind(id).fetch_one(&mut *tx).await?;
+    // Same lock order as approve: match, then request.
+    let (capacity, open, title, price): (i32, bool, String, i64) =
+        sqlx::query_as("SELECT capacity, cancelled_at IS NULL AND starts_at > now(), title, price_idr FROM matches WHERE id = $1 FOR UPDATE")
+            .bind(match_id)
+            .fetch_one(&mut *tx)
+            .await?;
+    let (status, user): (String, Option<Uuid>) =
+        sqlx::query_as("SELECT status::text, user_id FROM join_requests WHERE id = $1 FOR UPDATE").bind(id).fetch_one(&mut *tx).await?;
+    match status.as_str() {
+        "awaiting_payment" => {}
+        // An expired hold gave its seat back: take it again only if the match still has room.
+        "expired" => {
+            if !open {
+                return Err(e409("MATCH_NOT_OPEN", "Pertandingan sudah dimulai atau dibatalkan"));
+            }
+            let taken: i64 = sqlx::query_scalar("SELECT count(*) FROM join_requests WHERE match_id = $1 AND status IN ('awaiting_payment','confirmed')")
+                .bind(match_id)
+                .fetch_one(&mut *tx)
+                .await?;
+            if taken >= capacity as i64 {
+                return Err(e409("MATCH_FULL", "Kursi sudah penuh"));
+            }
+        }
+        _ => return Err(e409("ALREADY_PROCESSED", "Permintaan sudah diproses")),
+    }
+    sqlx::query(
+        "UPDATE join_requests SET status = 'confirmed', payment_method = 'cash', paid_idr = $2, paid_at = now(), hold_expires_at = NULL, \
+           decided_by = $3, updated_at = now() WHERE id = $1",
+    )
+    .bind(id)
+    .bind(price)
+    .bind(m.id)
+    .execute(&mut *tx)
+    .await?;
+    if let Some(user) = user {
+        notify(&mut *tx, user, "payment_confirmed", "Kursi terkonfirmasi", &format!("Pembayaranmu dikonfirmasi admin. Kamu terdaftar di pertandingan {title}.")).await?;
+    }
+    let v = one(&mut *tx, id).await?;
+    tx.commit().await?;
+    Ok(ok(v))
+}
+
 pub async fn reject(State(st): State<AppState>, m: Member, Path(id): Path<Uuid>) -> R<Json<Value>> {
     m.need(Role::Host)?;
     let mut tx = st.db.begin().await?;
